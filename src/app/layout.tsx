@@ -146,7 +146,6 @@ export default function RootLayout({
                 "Multi-language support",
                 "AI-powered tutoring",
                 "Real-time test execution",
-                "Integrated whiteboard"
               ]
             })
           }}

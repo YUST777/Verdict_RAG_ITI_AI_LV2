@@ -1,38 +1,21 @@
 import React from 'react';
-import { CFProblemData, Submission, AnalyticsStats } from '../shared/types';
+import { CFProblemData } from '../shared/types';
 import { CFProblemDescription } from './CFProblemDescription';
-import SubmissionsList from '../SubmissionsList';
-import AnalyticsView from '../AnalyticsView';
-import Whiteboard from '../Whiteboard';
 import ProblemTabs from './ProblemTabs';
-import HandleInputSection from '../HandleInputSection';
 import AIAgentPanel from '../ai/AIAgentPanel';
 import ProblemNotes from './ProblemNotes';
 
 
 interface ProblemLeftPanelProps {
-    activeTab: 'description' | 'submissions' | 'analytics' | 'solution';
-    setActiveTab: (tab: 'description' | 'submissions' | 'analytics' | 'solution') => void;
-    isWhiteboardExpanded: boolean;
-    setIsWhiteboardExpanded: (expanded: boolean) => void;
+    activeTab: 'description' | 'solution';
+    setActiveTab: (tab: 'description' | 'solution') => void;
     cfData: CFProblemData | null;
-    submissions: Submission[];
-    submissionsLoading: boolean;
-    statsLoading?: boolean;
-    stats: AnalyticsStats | null;
     cfStats: { rating?: number; solvedCount: number; tags?: string[] } | null;
     contestId: string;
     problemId: string;
-    whiteboardHeight: number;
-    handleWhiteboardResizeStart: (e: React.MouseEvent) => void;
-    analyzeComplexity: () => void;
-    complexityLoading: boolean;
     leftPanelRef: React.RefObject<HTMLDivElement>;
     lastWidth: React.MutableRefObject<number>;
     mobileView: 'problem' | 'code';
-    cfHandle: string | null;
-    handleLoading: boolean;
-    onHandleSave: (handle: string) => void;
     userCode: string;
     language: string;
     onSolveProblem?: () => void;
@@ -53,25 +36,13 @@ interface ProblemLeftPanelProps {
 export default React.memo(function ProblemLeftPanel({
     activeTab,
     setActiveTab,
-    isWhiteboardExpanded,
-    setIsWhiteboardExpanded,
     cfData,
-    submissions,
-    submissionsLoading,
-    stats,
     cfStats,
     contestId,
     problemId,
-    whiteboardHeight,
-    handleWhiteboardResizeStart,
-    analyzeComplexity,
-    complexityLoading,
     leftPanelRef,
     lastWidth,
     mobileView,
-    cfHandle,
-    handleLoading,
-    onHandleSave,
     userCode,
     language,
     onSolveProblem,
@@ -80,7 +51,6 @@ export default React.memo(function ProblemLeftPanel({
     aiInitialQuestion,
     onClearSelection,
     selectedLineReference,
-    statsLoading,
     ...otherProps
 }: ProblemLeftPanelProps) {
     const safeContestId = Array.isArray(contestId) ? contestId[0] : contestId;
@@ -107,8 +77,6 @@ export default React.memo(function ProblemLeftPanel({
                         (otherProps as any).onSwitchToAiTab();
                     }
                 }}
-                isWhiteboardExpanded={isWhiteboardExpanded}
-                setIsWhiteboardExpanded={setIsWhiteboardExpanded}
             />
 
             <div className="flex-1 min-h-0 flex flex-col relative">
@@ -118,40 +86,6 @@ export default React.memo(function ProblemLeftPanel({
                         data-lenis-prevent="true"
                     >
                         {cfData && <CFProblemDescription data={cfData} />}
-                    </div>
-                )}
-                {activeTab === 'submissions' && (
-                    <div
-                        className="absolute inset-0 overflow-hidden flex flex-col"
-                        data-lenis-prevent="true"
-                    >
-                        {!handleLoading && !cfHandle ? (
-                            <div className="flex items-center justify-center py-12 px-4">
-                                <HandleInputSection onSave={onHandleSave} compact />
-                            </div>
-                        ) : (
-                            <SubmissionsList
-                                submissions={submissions}
-                                loading={submissionsLoading}
-                                onViewCode={() => { }}
-                                contestId={safeContestId}
-                                problemIndex={safeProblemId}
-                            />
-                        )}
-                    </div>
-                )}
-                {activeTab === 'analytics' && (
-                    <div
-                        className="absolute inset-0 overflow-y-auto overflow-x-hidden p-4 sm:p-6 space-y-4 sm:space-y-6 custom-scrollbar"
-                        data-lenis-prevent="true"
-                    >
-                        <AnalyticsView
-                            stats={stats}
-                            cfStats={cfStats}
-                            loading={statsLoading !== undefined ? statsLoading : submissionsLoading}
-                            analyzeComplexity={analyzeComplexity}
-                            complexityLoading={complexityLoading}
-                        />
                     </div>
                 )}
                 {/* Keep AIAgentPanel mounted but hidden when inactive to allow auto-start and ghost typing */}
@@ -217,21 +151,6 @@ export default React.memo(function ProblemLeftPanel({
                     </div>
                 )}
             </div>
-            {isWhiteboardExpanded && (
-                <div
-                    className="h-1.5 bg-[#121212] hover:bg-[#10B981] cursor-row-resize transition-colors w-full shrink-0"
-                    onMouseDown={handleWhiteboardResizeStart}
-                />
-            )}
-
-            {/* Whiteboard Component at the bottom */}
-            <Whiteboard
-                contestId={contestId}
-                problemIndex={problemId}
-                isExpanded={isWhiteboardExpanded}
-                onToggleExpand={() => setIsWhiteboardExpanded(!isWhiteboardExpanded)}
-                height={whiteboardHeight}
-            />
         </div>
     );
 });

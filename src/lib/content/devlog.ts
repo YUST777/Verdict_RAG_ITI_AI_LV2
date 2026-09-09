@@ -61,13 +61,12 @@ export const devLogs: LogEntry[] = [
         date: '2026-03-01',
         title: 'Verdict Goes Live',
         subtitle: 'Codeforces mirror, AI tutor, and workspace',
-        description: 'The initial launch of verdict.run with the core Codeforces mirror, Monaco editor workspace, AI-powered code tutoring via Gemini, Excalidraw whiteboard integration, and the browser extension for submitting to external judges.',
+        description: 'The initial launch of verdict.run with the core Codeforces mirror, Monaco editor workspace, AI-powered code tutoring via Gemini, and the browser extension for submitting to external judges.',
         highlights: [
             'CF Mirror: paste any Codeforces URL and solve in LeetCode-style UI',
             'Monaco editor with multi-language support and custom snippets',
             'Judge0 self-hosted code execution (2 workers)',
             'Gemini AI tutor for code explanations and hints',
-            'Excalidraw whiteboard for algorithm visualization',
         ],
     },
 ];

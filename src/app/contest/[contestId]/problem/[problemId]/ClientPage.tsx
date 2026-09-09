@@ -4,9 +4,8 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { OnMount } from "@monaco-editor/react";
 import { AlertCircle } from "lucide-react";
-import { Submission, AnalyticsStats } from "@/components/mirror/shared/types";
 import { ProblemHeader } from "@/components/mirror/problem";
-import { CodeWorkspace, ComplexityModal } from "@/components/mirror/editor";
+import { CodeWorkspace } from "@/components/mirror/editor";
 import { ProblemLeftPanel } from "@/components/mirror/problem";
 import ProblemDrawer, { ActiveSheet } from "@/components/mirror/problem/ProblemDrawer";
 import ExtensionGate from "@/components/core/ExtensionGate";
@@ -20,10 +19,8 @@ import { useProblemData } from "@/hooks/contest/useProblemData";
 import { useCodePersistence } from "@/hooks/contest/useCodePersistence";
 import { useCustomTestCases } from "@/hooks/contest/useCustomTestCases";
 import { useResizableLayout } from "@/hooks/contest/useResizableLayout";
-import { useWhiteboardResize } from "@/hooks/contest/useWhiteboardResize";
 import { useCodeforcesSubmission } from "@/hooks/contest/useCodeforcesSubmission";
 import { useLocalTestRunner } from "@/hooks/contest/useLocalTestRunner";
-import { useCodeforcesHandle } from "@/hooks/contest/useCodeforcesHandle";
 
 // Utils
 import { getNavigationBaseUrl } from "@/lib/codeforcesUtils";
@@ -71,20 +68,16 @@ export default function CodeforcesMirrorPage({ forcedType }: CodeforcesMirrorPag
 
     // Layout Hooks
     const { containerRef, leftPanelRef, handleMouseDown, lastWidth } = useResizableLayout();
-    const { whiteboardHeight, handleResizeStart: handleWhiteboardResizeStart } = useWhiteboardResize();
-
-    // Codeforces Handle
-    const { handle: cfHandle, setHandle: setCfHandle, loading: handleLoading } = useCodeforcesHandle();
 
     const [isTestPanelVisible, setIsTestPanelVisible] = useState(false);
     const [testPanelActiveTab, setTestPanelActiveTab] = useState<"testcase" | "result" | "codeforces">("testcase");
     const { requireAuth } = useRequireAuth();
 
     // Tab State
-    const [activeTab, setActiveTab] = useState<"description" | "submissions" | "analytics" | "solution">("description");
+    const [activeTab, setActiveTab] = useState<"description" | "solution">("description");
 
     // All workspace features are available in local guest mode.
-    const gatedSetActiveTab = useCallback((tab: "description" | "submissions" | "analytics" | "solution") => {
+    const gatedSetActiveTab = useCallback((tab: "description" | "solution") => {
         if (tab === "solution" && !requireAuth()) return;
         setActiveTab(tab);
     }, [requireAuth]);
@@ -96,7 +89,6 @@ export default function CodeforcesMirrorPage({ forcedType }: CodeforcesMirrorPag
             setCodeTab("ai");
         }
     }, [searchParams]);
-    const [isWhiteboardExpanded, setIsWhiteboardExpanded] = useState(false);
     const [mobileView, setMobileView] = useState<"problem" | "code">("problem");
 
     // Notes state
@@ -105,33 +97,6 @@ export default function CodeforcesMirrorPage({ forcedType }: CodeforcesMirrorPag
     // ─── Problem Drawer state (replaces SidebarTabs) ───
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [activeSheet, setActiveSheet] = useState<ActiveSheet | null>(null);
-
-    // Submissions & Analytics State
-    const [submissions, setSubmissions] = useState<Submission[]>([]);
-    const [submissionsLoading, setSubmissionsLoading] = useState(false);
-    const [statsLoading, setStatsLoading] = useState(false);
-    const [stats, setStats] = useState<AnalyticsStats | null>(null);
-    const dataFetchedRef = useRef(false);
-
-    // The stripped workspace is anonymous; submissions are fetched from
-    // Codeforces only when a local handle is available.
-    const loadDbSubmissions = useCallback(async () => {
-        setSubmissions([]);
-    }, [contestId, problemId]);
-
-    // Load DB submissions on mount
-    useEffect(() => {
-        loadDbSubmissions();
-    }, [loadDbSubmissions]);
-
-    // Complexity Analysis State
-    const [complexityResult, setComplexityResult] = useState<{
-        timeComplexity: string;
-        spaceComplexity: string;
-        explanation: string;
-    } | null>(null);
-    const [complexityLoading, setComplexityLoading] = useState(false);
-    const [showComplexityModal, setShowComplexityModal] = useState(false);
 
     // AI Code State
     const [aiCode, setAiCode] = useState<string>("");
@@ -146,9 +111,6 @@ export default function CodeforcesMirrorPage({ forcedType }: CodeforcesMirrorPag
         setActiveTab("description");
         setIsTestPanelVisible(false);
         setTestPanelActiveTab("testcase");
-        dataFetchedRef.current = false;
-        setSubmissions([]);
-        setStats(null);
         // Reset AI state
         setAiCode("");
         setCodeTab("human");
@@ -186,7 +148,6 @@ export default function CodeforcesMirrorPage({ forcedType }: CodeforcesMirrorPag
         groupId,
         setIsTestPanelVisible,
         setTestPanelActiveTab,
-        onSubmissionSaved: loadDbSubmissions,
         problemRating: cfStats?.rating,
         problemTags: cfData?.tags,
         problemName: cfData?.meta?.title,
@@ -265,127 +226,6 @@ export default function CodeforcesMirrorPage({ forcedType }: CodeforcesMirrorPag
         setAiInitialQuestion("");
         setSelectedLineReference("");
     };
-
-    // Complexity analysis mock
-    const analyzeComplexity = async () => {
-        setComplexityLoading(true);
-        setShowComplexityModal(true);
-        setComplexityResult({
-            timeComplexity: "N/A",
-            spaceComplexity: "N/A",
-            explanation: "Complexity analysis is not available in mirror mode.",
-        });
-        setComplexityLoading(false);
-    };
-
-    // Optimized data fetching: parallel API calls + background prefetch + progressive loading
-    const fetchData = useCallback(async (force = false) => {
-        if (!contestId || !problemId) return;
-        if (handleLoading) return;
-        if (!cfHandle) {
-            setSubmissions([]);
-            setSubmissionsLoading(false);
-            setStatsLoading(false);
-            return;
-        }
-        if (dataFetchedRef.current && !force) return;
-        dataFetchedRef.current = true;
-
-        const safeContestId = Array.isArray(contestId) ? contestId[0] : contestId;
-        const safeProblemId = (Array.isArray(problemId) ? problemId[0] : problemId).toUpperCase();
-
-        setSubmissionsLoading(true);
-        setStatsLoading(true);
-
-        // Fire BOTH API calls simultaneously — don't wait for one before starting the other
-        const userPromise = fetch(
-            `/api/codeforces/user-submissions?handle=${encodeURIComponent(cfHandle)}&contestId=${safeContestId}&problemIndex=${safeProblemId}`
-        ).then(r => r.ok ? r.json() : null).catch(() => null);
-
-        const globalPromise = fetch(
-            `/api/codeforces/submissions?contestId=${safeContestId}&problemIndex=${safeProblemId}`
-        ).then(r => r.ok ? r.json() : null).catch(() => null);
-
-        // Fetch user submissions from CF API (used for analytics stats computation)
-        // The "Your Submissions" list is loaded from our DB via loadDbSubmissions (persists across refreshes)
-        let rawSubmissions: { id: number; verdict: string; timeConsumedMillis: number; memoryConsumedBytes: number; creationTimeSeconds: number; passedTestCount?: number }[] = [];
-        try {
-            const userData = await userPromise;
-            if (userData?.success && Array.isArray(userData.submissions)) {
-                rawSubmissions = userData.submissions;
-            }
-        } catch {
-            // CF API failure is non-critical — DB submissions already loaded
-        }
-        setSubmissionsLoading(false); // Submissions tab ready!
-
-        // Process global distribution (slow path — network request already in-flight)
-        try {
-            const globalData = await globalPromise;
-            const accepted = rawSubmissions.filter(s => s.verdict === "Accepted");
-
-            if (globalData?.success && globalData.totalAccepted > 0) {
-                const runtimeDist = globalData.runtimeDistribution.map((b: { label: string; count: number; rangeStart: number; rangeEnd: number }) => {
-                    const userBestTime = accepted.length > 0 ? Math.min(...accepted.map(s => s.timeConsumedMillis)) : null;
-                    return { label: b.label, count: b.count, isUser: userBestTime !== null && userBestTime >= b.rangeStart && userBestTime < b.rangeEnd };
-                });
-                const memoryDist = globalData.memoryDistribution.map((b: { label: string; count: number; rangeStart: number; rangeEnd: number }) => {
-                    const userBestMem = accepted.length > 0 ? Math.min(...accepted.map(s => s.memoryConsumedBytes / 1024)) : null;
-                    return { label: b.label, count: b.count, isUser: userBestMem !== null && userBestMem >= b.rangeStart && userBestMem < b.rangeEnd };
-                });
-
-                let userStats: AnalyticsStats["userStats"] = null;
-                if (accepted.length > 0) {
-                    const userBestTime = Math.min(...accepted.map(s => s.timeConsumedMillis));
-                    const userBestMem = Math.min(...accepted.map(s => s.memoryConsumedBytes / 1024));
-                    let slowerCount = 0, moreMemCount = 0;
-                    for (const b of globalData.runtimeDistribution) {
-                        if (b.rangeStart > userBestTime) slowerCount += b.count;
-                        else if (b.rangeStart <= userBestTime && b.rangeEnd > userBestTime) slowerCount += Math.round(b.count * 0.5);
-                    }
-                    for (const b of globalData.memoryDistribution) {
-                        if (b.rangeStart > userBestMem) moreMemCount += b.count;
-                        else if (b.rangeStart <= userBestMem && b.rangeEnd > userBestMem) moreMemCount += Math.round(b.count * 0.5);
-                    }
-                    userStats = {
-                        runtime: { value: userBestTime, percentile: Math.min(99, Math.round((slowerCount / globalData.totalAccepted) * 100)) },
-                        memory: { value: userBestMem, percentile: Math.min(99, Math.round((moreMemCount / globalData.totalAccepted) * 100)) },
-                    };
-                }
-
-                setStats({ totalSubmissions: globalData.totalAccepted, runtimeDistribution: runtimeDist, memoryDistribution: memoryDist, userStats });
-            } else if (accepted.length > 0) {
-                const times = accepted.map(s => s.timeConsumedMillis).sort((a: number, b: number) => a - b);
-                const mems = accepted.map(s => s.memoryConsumedBytes / 1024).sort((a: number, b: number) => a - b);
-                const minTime = times[0]; const maxTime = times[times.length - 1];
-                const timeStep = Math.max(1, Math.ceil((maxTime - minTime) / 10));
-                const runtimeDist = Array.from({ length: 10 }, (_, i) => {
-                    const start = minTime + i * timeStep; const end = start + timeStep;
-                    return { label: `${start}-${end}ms`, count: times.filter((t: number) => t >= start && t < end).length, isUser: true };
-                });
-                const minMem = mems[0]; const maxMem = mems[mems.length - 1];
-                const memStep = Math.max(1, Math.ceil((maxMem - minMem) / 10));
-                const memoryDist = Array.from({ length: 10 }, (_, i) => {
-                    const start = minMem + i * memStep; const end = start + memStep;
-                    return { label: `${Math.round(start)}-${Math.round(end)}KB`, count: mems.filter((m: number) => m >= start && m < end).length, isUser: true };
-                });
-                setStats({ totalSubmissions: accepted.length, runtimeDistribution: runtimeDist, memoryDistribution: memoryDist, userStats: null });
-            } else {
-                setStats(null);
-            }
-        } catch {
-            setStats(null);
-        }
-        setStatsLoading(false); // Analytics tab ready!
-    }, [contestId, problemId, cfHandle, handleLoading]);
-
-    // Background prefetch: start loading data immediately when CF handle is available
-    // Data loads in the background while user reads the problem description
-    useEffect(() => {
-        if (!handleLoading && cfHandle) {
-            fetchData();
-        }
-    }, [cfHandle, handleLoading, fetchData]);
 
     // Navigation Base URL
     const navigationBaseUrl = getNavigationBaseUrl(contestId, urlType, groupId);
@@ -494,29 +334,13 @@ export default function CodeforcesMirrorPage({ forcedType }: CodeforcesMirrorPag
                         <ProblemLeftPanel
                             activeTab={activeTab}
                             setActiveTab={gatedSetActiveTab}
-                            isWhiteboardExpanded={isWhiteboardExpanded}
-                            setIsWhiteboardExpanded={setIsWhiteboardExpanded}
                             cfData={cfData}
-                            submissions={submissions}
-                            submissionsLoading={submissionsLoading}
-                            statsLoading={statsLoading}
-                            stats={stats}
                             cfStats={cfStats}
                             contestId={contestId}
                             problemId={problemId}
-                            whiteboardHeight={whiteboardHeight}
-                            handleWhiteboardResizeStart={handleWhiteboardResizeStart}
-                            analyzeComplexity={analyzeComplexity}
-                            complexityLoading={complexityLoading}
                             leftPanelRef={leftPanelRef as any}
                             lastWidth={lastWidth}
                             mobileView={mobileView}
-                            cfHandle={cfHandle}
-                            handleLoading={handleLoading}
-                            onHandleSave={(handle) => {
-                                dataFetchedRef.current = false;
-                                setCfHandle(handle);
-                            }}
                             userCode={code}
                             language={language}
                             onAiCodeUpdate={(newCode) => {
@@ -581,13 +405,6 @@ export default function CodeforcesMirrorPage({ forcedType }: CodeforcesMirrorPag
                         />
                     </div>
 
-                    {/* Complexity Modal */}
-                    <ComplexityModal
-                        isOpen={showComplexityModal}
-                        onClose={() => setShowComplexityModal(false)}
-                        loading={complexityLoading}
-                        result={complexityResult}
-                    />
                 </div>
             </div>
         </ExtensionGate>

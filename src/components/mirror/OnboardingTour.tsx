@@ -4,7 +4,7 @@ import { useEffect, useCallback, useState } from 'react';
 import { driver, type DriveStep } from 'driver.js';
 import 'driver.js/dist/driver.css';
 import { renderToString } from 'react-dom/server';
-import { BookOpen, MonitorPlay, BarChart2, Sparkles, TerminalSquare, Puzzle, Timer, Settings } from 'lucide-react';
+import { BookOpen, MonitorPlay, Sparkles, TerminalSquare, Puzzle, Settings } from 'lucide-react';
 
 const ONBOARDING_STORAGE_KEY = 'verdict-onboarding-completed';
 
@@ -50,7 +50,7 @@ export default function OnboardingTour({
                 element: '#onboarding-left-panel',
                 popover: {
                     title: `${renderIcon(BookOpen)}<span class="align-middle">Welcome to Verdict!</span>`,
-                    description: 'This is your workspace. On the left you\'ll find the problem statement, submissions, analytics, and AI tutor. Let\'s take a quick tour!',
+                    description: 'This is your workspace. On the left you\'ll find the problem statement and AI tutor. Let\'s take a quick tour!',
                     side: 'right' as const,
                     align: 'center' as const,
                 },
@@ -75,17 +75,7 @@ export default function OnboardingTour({
                     align: 'center' as const,
                 },
             },
-            // Step 4: Analytics tab
-            {
-                element: '#onboarding-tab-analytics',
-                popover: {
-                    title: `${renderIcon(BarChart2)}<span class="align-middle">Performance Analytics</span>`,
-                    description: 'See runtime and memory distributions across all accepted solutions. Compare your performance with the global leaderboard.',
-                    side: 'bottom' as const,
-                    align: 'start' as const,
-                },
-            },
-            // Step 5: AI Tutor tab
+            // Step 4: AI Tutor tab
             {
                 element: '#onboarding-tab-ai-tutor',
                 popover: {
