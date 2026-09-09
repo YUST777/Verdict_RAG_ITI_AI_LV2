@@ -8,15 +8,25 @@ class Generator:
     def __init__(self, settings: Settings):
         self.settings = settings
 
+    @staticmethod
+    def _clip(value: str, limit: int) -> str:
+        """Keep prompts inside the small model's context window."""
+        value = value or ""
+        return value if len(value) <= limit else value[:limit] + "\n[truncated]"
+
     async def generate(self, question: str, context: list[dict], mode: str, problem_statement: str | None = None, code: str | None = None) -> str:
-        source_text = "\n\n".join(f"[{i+1}] {x['metadata'].get('title', 'Source')}:\n{x['document']}" for i, x in enumerate(context))
+        source_text = "\n\n".join(
+            f"[{i+1}] {x['metadata'].get('title', 'Source')}:\n{self._clip(x['document'], 700)}"
+            for i, x in enumerate(context[:3])
+        )
+        source_text = self._clip(source_text, 2200)
         if not source_text:
             source_text = "No indexed source supports this question. State that limitation clearly and avoid invented citations."
         if mode == "quiz":
             task = "Return ONLY a JSON array of exactly five objects with keys q, type, line, and difficulty. Questions must test the supplied problem and code, progress from easy to hard, and use real 1-based code line numbers when possible. Do not include markdown or commentary."
         else:
             task = f"Give a practical, correct response in {mode} mode. Include algorithm reasoning and complexity when relevant."
-        prompt = f"""You are Verdict, a competitive-programming tutor. Use only the supplied sources for factual claims. Never invent citations. If sources are insufficient, say so. {task}\n\nPROBLEM:\n{problem_statement or '(not provided)'}\n\nCODE:\n{code or '(not provided)'}\n\nQUESTION:\n{question}\n\nSOURCES:\n{source_text}\n\nCite sources inline as [1], [2]."""
+        prompt = f"""You are Verdict, a competitive-programming tutor. Use only the supplied sources for factual claims. Never invent citations. If sources are insufficient, say so. {task}\n\nPROBLEM:\n{self._clip(problem_statement or '(not provided)', 1800)}\n\nCODE:\n{self._clip(code or '(not provided)', 900)}\n\nQUESTION:\n{self._clip(question, 500)}\n\nSOURCES:\n{source_text}\n\nCite sources inline as [1], [2]."""
         try:
             async with httpx.AsyncClient(timeout=self.settings.ollama_timeout_seconds) as client:
                 response = await client.post(
