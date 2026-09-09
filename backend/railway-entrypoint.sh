@@ -49,14 +49,26 @@ start_local_ollama() {
     # Model files are stored in /root/.ollama by default.  A Railway volume
     # mounted there prevents a pull on every restart; without a volume this is
     # still safe and simply rehydrates the configured model after a redeploy.
-    if [ "${OLLAMA_PULL_MODEL:-1}" = "1" ] && ! ollama show "$OLLAMA_MODEL" >/dev/null 2>&1; then
+    # Pull asynchronously by default so Railway can see a healthy HTTP port
+    # while the first model download is in progress.  Set
+    # OLLAMA_PULL_BLOCKING=1 when a deployment must wait for the model.
+    ensure_model() {
+        if [ "${OLLAMA_PULL_MODEL:-1}" != "1" ] || ollama show "$OLLAMA_MODEL" >/dev/null 2>&1; then
+            return 0
+        fi
         echo "Pulling Ollama model ${OLLAMA_MODEL}"
         if ! ollama pull "$OLLAMA_MODEL"; then
             echo "Warning: unable to pull ${OLLAMA_MODEL}; API will use its grounded fallback."
-            if [ "${OLLAMA_REQUIRED:-0}" = "1" ]; then
-                exit 1
-            fi
+            return 1
         fi
+    }
+    if [ "${OLLAMA_PULL_BLOCKING:-0}" = "1" ]; then
+        if ! ensure_model && [ "${OLLAMA_REQUIRED:-0}" = "1" ]; then
+            exit 1
+        fi
+    else
+        ensure_model >/tmp/ollama-pull.log 2>&1 &
+        echo "Ollama model pull started in the background (set OLLAMA_PULL_BLOCKING=1 to wait)."
     fi
 }
 
