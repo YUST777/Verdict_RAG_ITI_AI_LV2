@@ -35,6 +35,28 @@ function getTextContent(children: React.ReactNode): string {
     return '';
 }
 
+function normalizeMarkdown(content: string): string {
+    // The RAG proxy appends citations after the model answer. If a small model
+    // forgets to close its final fenced code block, those citations otherwise
+    // become part of the copied code. Close the fence before the sources card.
+    const sourcesIndex = content.search(/(^|\n)\s*###\s+Retrieved sources\b/i);
+    let normalized = content;
+    if (sourcesIndex >= 0) {
+        const before = content.slice(0, sourcesIndex);
+        const after = content.slice(sourcesIndex);
+        const openFences = (before.match(/```/g) || []).length % 2 === 1;
+        if (openFences) {
+            normalized = `${before.replace(/\s*$/, '')}\n\n\`\`\`\n\n${after.replace(/^\s*/, '')}`;
+        }
+    }
+
+    // Keep malformed model output from swallowing the rest of the message.
+    if ((normalized.match(/```/g) || []).length % 2 === 1) {
+        normalized = `${normalized}\n\n\`\`\``;
+    }
+    return normalized;
+}
+
 
 
 // Code Block with Copy Button
@@ -94,12 +116,7 @@ const CodeBlock = ({ className, children, ...props }: any) => {
 export default function MarkdownRenderer({ content, className = '' }: MarkdownRendererProps) {
     const hasArabic = containsArabic(content);
     const direction = getTextDirection(content);
-    // Small local models sometimes forget to close a fenced code block. Close
-    // an unmatched fence so the following explanation and citations render as
-    // Markdown instead of becoming one enormous code block.
-    const normalizedContent = (content.match(/```/g) || []).length % 2 === 1
-        ? `${content}\n\n\`\`\``
-        : content;
+    const normalizedContent = normalizeMarkdown(content);
 
     return (
         <div
