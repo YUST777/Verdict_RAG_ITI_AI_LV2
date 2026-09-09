@@ -19,7 +19,19 @@ class Generator:
         prompt = f"""You are Verdict, a competitive-programming tutor. Use only the supplied sources for factual claims. Never invent citations. If sources are insufficient, say so. {task}\n\nPROBLEM:\n{problem_statement or '(not provided)'}\n\nCODE:\n{code or '(not provided)'}\n\nQUESTION:\n{question}\n\nSOURCES:\n{source_text}\n\nCite sources inline as [1], [2]."""
         try:
             async with httpx.AsyncClient(timeout=self.settings.ollama_timeout_seconds) as client:
-                response = await client.post(f"{self.settings.ollama_url.rstrip('/')}/api/generate", json={"model": self.settings.ollama_model, "prompt": prompt, "stream": False, "options": {"temperature": 0.2, "num_predict": self.settings.ollama_num_predict}})
+                response = await client.post(
+                    f"{self.settings.ollama_url.rstrip('/')}/api/generate",
+                    json={
+                        "model": self.settings.ollama_model,
+                        "prompt": prompt,
+                        "stream": False,
+                        "options": {
+                            "temperature": 0.2,
+                            "num_predict": self.settings.ollama_num_predict,
+                            "num_ctx": self.settings.ollama_num_ctx,
+                        },
+                    },
+                )
                 response.raise_for_status()
                 return response.json().get("response", "").strip() or "The model returned an empty answer."
         except Exception as exc:

@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     ollama_model: str = "llama3.2:3b"
     ollama_timeout_seconds: float = 15.0
     ollama_num_predict: int = 384
+    # Keep the small Railway Ollama container under its 1 GB memory limit.
+    # Larger contexts make the KV cache consume the remaining memory after
+    # Chroma and the 135M model are loaded.
+    ollama_num_ctx: int = 1024
     retrieval_k: int = 5
     retrieval_min_score: float = 0.0
     database_url: str | None = None
