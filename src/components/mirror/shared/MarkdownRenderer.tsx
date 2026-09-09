@@ -64,15 +64,6 @@ const CodeBlock = ({ className, children, ...props }: any) => {
         );
     }
 
-    const highlightCode = (code: string) => {
-        const escaped = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        return escaped
-            .replace(/\b(int|long|double|float|char|string|void|bool|if|else|for|while|return|main|using|namespace|include|std|vector|map|set|pair|push_back|size|length)\b/g, '<span class="text-blue-400 font-bold">$1</span>')
-            .replace(/(&quot;.*?&quot;|'.*?')/g, '<span class="text-orange-300">$1</span>')
-            .replace(/([-+*\/%&|^!=]+|&lt;|&gt;)/g, '<span class="text-white/40">$1</span>')
-            .replace(/(&#47;&#47;.*)/g, '<span class="text-zinc-500 italic">$1</span>');
-    };
-
     return (
         <div className="relative group my-4 rounded-xl overflow-hidden border border-white/10 bg-black/40 backdrop-blur-md shadow-2xl" dir="ltr">
             <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-b border-white/5">
@@ -91,8 +82,10 @@ const CodeBlock = ({ className, children, ...props }: any) => {
             <pre className="p-4 overflow-x-auto text-[13px] leading-relaxed font-mono custom-scrollbar">
                 <code
                     className={className}
-                    dangerouslySetInnerHTML={{ __html: highlightCode(text) }}
-                />
+                    {...props}
+                >
+                    {text}
+                </code>
             </pre>
         </div>
     );
@@ -101,6 +94,12 @@ const CodeBlock = ({ className, children, ...props }: any) => {
 export default function MarkdownRenderer({ content, className = '' }: MarkdownRendererProps) {
     const hasArabic = containsArabic(content);
     const direction = getTextDirection(content);
+    // Small local models sometimes forget to close a fenced code block. Close
+    // an unmatched fence so the following explanation and citations render as
+    // Markdown instead of becoming one enormous code block.
+    const normalizedContent = (content.match(/```/g) || []).length % 2 === 1
+        ? `${content}\n\n\`\`\``
+        : content;
 
     return (
         <div
@@ -109,6 +108,7 @@ export default function MarkdownRenderer({ content, className = '' }: MarkdownRe
             <ReactMarkdown
                 remarkPlugins={[remarkMath]}
                 rehypePlugins={[rehypeKatex]}
+                skipHtml
                 components={{
                     // Customize code blocks - ALWAYS LTR
                     code: CodeBlock,
@@ -292,7 +292,7 @@ export default function MarkdownRenderer({ content, className = '' }: MarkdownRe
                     },
                 }}
             >
-                {content}
+                {normalizedContent}
             </ReactMarkdown>
         </div>
     );
