@@ -14,7 +14,16 @@ class Generator:
         value = value or ""
         return value if len(value) <= limit else value[:limit] + "\n[truncated]"
 
-    async def generate(self, question: str, context: list[dict], mode: str, problem_statement: str | None = None, code: str | None = None) -> str:
+    async def generate(
+        self,
+        question: str,
+        context: list[dict],
+        mode: str,
+        problem_statement: str | None = None,
+        code: str | None = None,
+        problem_id: str | None = None,
+        language: str | None = None,
+    ) -> str:
         source_text = "\n\n".join(
             f"[{i+1}] {x['metadata'].get('title', 'Source')}:\n{self._clip(x['document'], 700)}"
             for i, x in enumerate(context[:3])
@@ -25,8 +34,36 @@ class Generator:
         if mode == "quiz":
             task = "Return ONLY a JSON array of exactly five objects with keys q, type, line, and difficulty. Questions must test the supplied problem and code, progress from easy to hard, and use real 1-based code line numbers when possible. Do not include markdown or commentary."
         else:
-            task = f"Give a practical, correct response in {mode} mode. Include algorithm reasoning and complexity when relevant."
-        prompt = f"""You are Verdict, a competitive-programming tutor. Use only the supplied sources for factual claims. Never invent citations. If sources are insufficient, say so. {task}\n\nPROBLEM:\n{self._clip(problem_statement or '(not provided)', 1800)}\n\nCODE:\n{self._clip(code or '(not provided)', 900)}\n\nQUESTION:\n{self._clip(question, 500)}\n\nSOURCES:\n{source_text}\n\nCite sources inline as [1], [2]."""
+            if mode == "full":
+                task = (
+                    f"Solve the exact problem yourself in {language or 'the requested programming language'}. "
+                    "Explain the key observation, algorithm, proof, edge cases, and complexity, then provide a "
+                    "complete compilable solution in that language. Do not copy an unrelated source algorithm. "
+                    "Do not claim that the code passed a judge; it has not been executed."
+                )
+            else:
+                task = f"Give a practical, correct response in {mode} mode. Include algorithm reasoning and complexity when relevant."
+        prompt = f"""You are Verdict, a competitive-programming tutor. Solve the supplied problem, not a nearest-neighbour article. The problem statement and requested language are authoritative. Use indexed sources only as optional background; ignore any source that is unrelated to the problem. Never invent citations. If the statement is incomplete, say what is missing instead of guessing. {task}
+
+PROBLEM ID:
+{self._clip(problem_id or '(not provided)', 120)}
+
+REQUESTED LANGUAGE:
+{self._clip(language or '(not provided)', 60)}
+
+PROBLEM:
+{self._clip(problem_statement or '(not provided)', 1800)}
+
+CODE:
+{self._clip(code or '(not provided)', 900)}
+
+QUESTION:
+{self._clip(question, 500)}
+
+SOURCES (background only; do not let them replace the problem):
+{source_text}
+
+Cite a source inline only when it directly supports the response, using [1], [2]."""
         try:
             async with httpx.AsyncClient(timeout=self.settings.ollama_timeout_seconds) as client:
                 response = await client.post(
@@ -49,6 +86,11 @@ class Generator:
             logger.error("Ollama generation failed: %s", exc)
             if mode == "quiz":
                 return self._quiz_fallback(code, problem_statement)
+            if mode == "full":
+                return (
+                    "I could not generate a solution because Ollama is unavailable. "
+                    "No code was verified or tested; start the model and try again."
+                )
             if context:
                 # Keep the demo useful when Ollama is not installed: retrieval is
                 # still real, so expose a short grounded excerpt instead of a

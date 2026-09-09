@@ -24,6 +24,19 @@ interface UseCodeforcesSubmissionReturn {
     submitting: boolean;
 }
 
+function languageMismatch(code: string, language: string): string | null {
+    const normalized = language.toLowerCase();
+    const looksCpp = /#include\s*[<"]|using\s+namespace\s+std|\bint\s+main\s*\(/.test(code);
+    const looksPython = /^\s*(def|class)\s+\w+\s*\(|\bprint\s*\(/m.test(code);
+    if ((normalized === 'python' || normalized === 'pypy') && looksCpp) {
+        return 'This editor is set to Python, but the code is C++. Change the language to C++ before submitting.';
+    }
+    if ((normalized === 'cpp' || normalized === 'c++') && looksPython && !looksCpp) {
+        return 'This editor is set to C++, but the code is Python. Change the language to Python before submitting.';
+    }
+    return null;
+}
+
 export function useCodeforcesSubmission({
     code,
     language,
@@ -62,6 +75,14 @@ export function useCodeforcesSubmission({
         const currentCode = codeRef.current;
         const currentLanguage = languageRef.current;
         if (!currentCode || submittingRef.current) return;
+
+        const mismatch = languageMismatch(currentCode, currentLanguage);
+        if (mismatch) {
+            setIsTestPanelVisible(true);
+            setTestPanelActiveTab('codeforces');
+            setCfStatus({ status: 'error', error: mismatch });
+            return;
+        }
 
         submittingRef.current = true;
         setSubmitting(true);
