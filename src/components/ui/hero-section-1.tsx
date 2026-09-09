@@ -233,7 +233,7 @@ const HeroHeader = () => {
     const [stars, setStars] = React.useState<number | null>(null)
 
     React.useEffect(() => {
-        fetch('https://api.github.com/repos/YUST777/verdict-community')
+        fetch('https://api.github.com/repos/YUST777/Verdict_RAG_ITI_AI_LV2')
             .then(res => res.json())
             .then(data => setStars(data.stargazers_count))
             .catch(err => console.error('Error fetching stars:', err))
