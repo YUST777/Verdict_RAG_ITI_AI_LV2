@@ -12,7 +12,6 @@ import ProblemDrawer, { ActiveSheet } from "@/components/mirror/problem/ProblemD
 import ExtensionGate from "@/components/core/ExtensionGate";
 import Link from "next/link";
 import OnboardingTour from "@/components/mirror/OnboardingTour";
-import { useAuth } from "@/contexts/AuthContext";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { TestCasesLoader } from "@/components/ui/TestCasesLoader";
 
@@ -79,7 +78,6 @@ export default function CodeforcesMirrorPage({ forcedType }: CodeforcesMirrorPag
 
     const [isTestPanelVisible, setIsTestPanelVisible] = useState(false);
     const [testPanelActiveTab, setTestPanelActiveTab] = useState<"testcase" | "result" | "codeforces">("testcase");
-    const { user } = useAuth();
     const { requireAuth } = useRequireAuth();
 
     // Tab State
@@ -115,20 +113,10 @@ export default function CodeforcesMirrorPage({ forcedType }: CodeforcesMirrorPag
     const [stats, setStats] = useState<AnalyticsStats | null>(null);
     const dataFetchedRef = useRef(false);
 
-    // Load submissions from our DB (persists across refreshes)
+    // The stripped workspace is anonymous; submissions are fetched from
+    // Codeforces only when a local handle is available.
     const loadDbSubmissions = useCallback(async () => {
-        try {
-            const safeProblemId = (Array.isArray(problemId) ? problemId[0] : problemId).toUpperCase();
-            const res = await fetch(`/api/submissions?contestId=${contestId}&problemIndex=${safeProblemId}`);
-            if (res.ok) {
-                const data = await res.json();
-                if (data.success && Array.isArray(data.submissions)) {
-                    setSubmissions(data.submissions);
-                }
-            }
-        } catch (e) {
-            console.warn('[loadDbSubmissions] failed:', e);
-        }
+        setSubmissions([]);
     }, [contestId, problemId]);
 
     // Load DB submissions on mount

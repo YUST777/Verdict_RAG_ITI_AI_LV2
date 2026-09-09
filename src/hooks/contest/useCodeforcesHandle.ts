@@ -11,10 +11,9 @@ interface UseCodeforcesHandleReturn {
 const STORAGE_KEY = 'verdict-cf-handle';
 
 /**
- * Hook to get Codeforces handle from multiple sources:
- * 1. Extension (if available)
- * 2. API (user's saved handle in DB)
- * 3. localStorage (fallback for logged-out users)
+ * Anonymous Codeforces handle storage. The stripped workspace keeps this
+ * preference in the browser so submissions and analytics work without an
+ * account or extension session.
  */
 export function useCodeforcesHandle(): UseCodeforcesHandleReturn {
     const [handle, setHandleState] = useState<string | null>(null);
@@ -35,81 +34,12 @@ export function useCodeforcesHandle(): UseCodeforcesHandleReturn {
         }
     }, []);
 
-    const getHandleFromExtension = useCallback(async (): Promise<string | null> => {
-        return new Promise((resolve) => {
-            if (!document.getElementById('verdict-extension-installed')) {
-                resolve(null);
-                return;
-            }
-
-            let resolved = false;
-            const timeout = setTimeout(() => {
-                if (!resolved) {
-                    resolved = true;
-                    window.removeEventListener('message', messageHandler);
-                    resolve(null);
-                }
-            }, 2000);
-
-            const messageHandler = (event: MessageEvent) => {
-                if (event.source !== window) return;
-                if (event.data?.type === 'VERDICT_HANDLE_RESPONSE') {
-                    if (!resolved) {
-                        resolved = true;
-                        clearTimeout(timeout);
-                        window.removeEventListener('message', messageHandler);
-                        resolve(event.data.handle || null);
-                    }
-                }
-            };
-
-            window.addEventListener('message', messageHandler);
-            window.postMessage({ type: 'VERDICT_GET_HANDLE' }, '*');
-        });
-    }, []);
-
-    const getHandleFromAPI = useCallback(async (): Promise<string | null> => {
-        try {
-            const res = await fetch('/api/user/cf-handle');
-            if (!res.ok) return null;
-            const data = await res.json();
-            return data.handle || null;
-        } catch {
-            return null;
-        }
-    }, []);
-
-    const saveHandleToDB = useCallback(async (cfHandle: string) => {
-        try {
-            await fetch('/api/user/cf-handle', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ handle: cfHandle }),
-            });
-        } catch {}
-    }, []);
-
     const refreshHandle = useCallback(async () => {
         setLoading(true);
         setError(null);
 
         try {
-            // Try extension first
-            let cfHandle = await getHandleFromExtension();
-
-            // Try DB
-            if (!cfHandle) {
-                cfHandle = await getHandleFromAPI();
-            }
-
-            // Try localStorage fallback
-            if (!cfHandle) {
-                cfHandle = loadFromLocalStorage();
-                // If found in localStorage but not DB, save to DB
-                if (cfHandle) {
-                    saveHandleToDB(cfHandle);
-                }
-            }
+            const cfHandle = loadFromLocalStorage();
 
             if (cfHandle) {
                 setHandleState(cfHandle);
@@ -124,17 +54,16 @@ export function useCodeforcesHandle(): UseCodeforcesHandleReturn {
         } finally {
             setLoading(false);
         }
-    }, [getHandleFromExtension, getHandleFromAPI, loadFromLocalStorage, saveToLocalStorage, saveHandleToDB]);
+    }, [loadFromLocalStorage, saveToLocalStorage]);
 
-    // Set handle manually (from user input) — saves to both DB and localStorage
+    // Set handle manually (from user input) — saves locally for this browser.
     const setHandle = useCallback((cfHandle: string) => {
         const trimmed = cfHandle.trim();
         if (trimmed) {
             setHandleState(trimmed);
             saveToLocalStorage(trimmed);
-            saveHandleToDB(trimmed);
         }
-    }, [saveToLocalStorage, saveHandleToDB]);
+    }, [saveToLocalStorage]);
 
     useEffect(() => {
         refreshHandle();

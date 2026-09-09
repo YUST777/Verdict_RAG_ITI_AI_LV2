@@ -5,12 +5,10 @@ import { Settings, Flame } from "lucide-react";
 import { TimerDropdown } from "./TimerDropdown";
 import { SettingsModal } from "./SettingsModal";
 import { Tooltip } from "@/components/ui/Tooltip";
-import { useAuth } from "@/contexts/AuthContext";
 
 export function HeaderActions() {
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [streak, setStreak] = useState<number | null>(null);
-    const { isAuthenticated } = useAuth();
 
     useEffect(() => {
         // Streaks were part of the removed account service. Keep a local value
@@ -20,7 +18,7 @@ export function HeaderActions() {
         const handleToggle = () => setIsSettingsOpen(prev => !prev);
         window.addEventListener('verdict:toggle-settings', handleToggle);
         return () => window.removeEventListener('verdict:toggle-settings', handleToggle);
-    }, [isAuthenticated]);
+    }, []);
 
     return (
         <div className="hidden md:flex items-center gap-1 shrink-0 text-white/60" id="onboarding-header-actions">

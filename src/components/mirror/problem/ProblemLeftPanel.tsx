@@ -9,8 +9,6 @@ import HandleInputSection from '../HandleInputSection';
 import AIAgentPanel from '../ai/AIAgentPanel';
 import ProblemNotes from './ProblemNotes';
 
-import { useAIAuth } from '@/lib/hooks/useAIAuth';
-import { useRouter, usePathname } from 'next/navigation';
 
 interface ProblemLeftPanelProps {
     activeTab: 'description' | 'submissions' | 'analytics' | 'solution';
@@ -85,10 +83,6 @@ export default React.memo(function ProblemLeftPanel({
     statsLoading,
     ...otherProps
 }: ProblemLeftPanelProps) {
-    const router = useRouter();
-    const pathname = usePathname();
-    const { isAuthenticated, isLoading: authLoading } = useAIAuth();
-
     const safeContestId = Array.isArray(contestId) ? contestId[0] : contestId;
     const safeProblemId = Array.isArray(problemId) ? problemId[0] : problemId;
 
