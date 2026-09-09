@@ -18,7 +18,9 @@ async def query(payload: QueryRequest, request: Request):
     # algorithm articles. Other modes use the problem and question first, with
     # a bounded code slice only when no statement is available.
     if payload.mode == "quiz":
-        query_text = payload.problem_statement or payload.question
+        # Quiz generation is about the supplied problem/code, not a nearest
+        # algorithm article. Avoid unrelated retrieval and citations entirely.
+        query_text = ""
     else:
         query_text = "\n".join(x for x in [payload.question, payload.problem_statement or "", (payload.code or "")[:4000] if not payload.problem_statement else ""] if x)
     context = retriever.search(query_text, payload.top_k or settings.retrieval_k) if query_text.strip() else []

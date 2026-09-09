@@ -24,9 +24,9 @@ class Generator:
                 return response.json().get("response", "").strip() or "The model returned an empty answer."
         except Exception as exc:
             logger.error("Ollama generation failed: %s", exc)
+            if mode == "quiz":
+                return self._quiz_fallback(code, problem_statement)
             if context:
-                if mode == "quiz":
-                    return self._quiz_fallback(code, problem_statement)
                 # Keep the demo useful when Ollama is not installed: retrieval is
                 # still real, so expose a short grounded excerpt instead of a
                 # blank chat response. The UI can show the same citations below it.
