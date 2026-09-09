@@ -21,6 +21,8 @@ class Retriever:
             from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
             Path(self.persist_dir).mkdir(parents=True, exist_ok=True)
             self._chroma = chromadb.PersistentClient(path=self.persist_dir)
+            # Chroma's embedding function lazily downloads the configured local model.
+            # Ingestion/query startup remains graceful if dependencies or network are absent.
             self._embedder = SentenceTransformerEmbeddingFunction(model_name=self.embedding_model_name)
             self._collection = self._chroma.get_or_create_collection(self.collection_name, embedding_function=self._embedder, metadata={"hnsw:space": "cosine"})
             self.error = None
