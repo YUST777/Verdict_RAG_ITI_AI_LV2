@@ -16,6 +16,11 @@ def extract(path: Path) -> str:
         return json.dumps(json.loads(path.read_text(encoding="utf-8")), ensure_ascii=False, indent=2)
     return path.read_text(encoding="utf-8", errors="ignore")
 
+def source_url(path: Path, text: str) -> str | None:
+    """Read an optional public source URL embedded in a corpus document."""
+    match = re.search(r"(?mi)^Source:\s*(https?://\S+)\s*$", text)
+    return match.group(1) if match else None
+
 def chunks(text: str, size: int = 1200, overlap: int = 160):
     clean = re.sub(r"\s+", " ", text).strip()
     return [clean[i:i + size] for i in range(0, len(clean), max(1, size - overlap)) if clean[i:i + size].strip()]
@@ -27,9 +32,14 @@ def main():
     docs, ids, metas = [], [], []
     for path in sorted(Path(args.input).rglob("*")):
         if path.suffix.lower() not in {".pdf", ".txt", ".md", ".json"}: continue
-        for index, chunk in enumerate(chunks(extract(path))):
+        full_text = extract(path)
+        public_url = source_url(path, full_text)
+        for index, chunk in enumerate(chunks(full_text)):
             source = hashlib.sha1(f"{path}:{index}".encode()).hexdigest()
-            docs.append(chunk); ids.append(source); metas.append({"source_id": source, "title": path.stem, "source": str(path), "path": str(path), "chunk": index})
+            metadata = {"source_id": source, "title": path.stem, "source": str(path), "path": str(path), "chunk": index}
+            if public_url:
+                metadata["source_url"] = public_url
+            docs.append(chunk); ids.append(source); metas.append(metadata)
     indexed = retriever.add(docs, ids, metas)
     if settings.database_url:
         asyncio.run(HistoryStore(settings).record_documents(metas))

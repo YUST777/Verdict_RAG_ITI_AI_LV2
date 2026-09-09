@@ -11,7 +11,7 @@ The UI is intentionally the Verdict workspace rather than a Gradio demo: it give
 - FastAPI `/health` and `/query` endpoints.
 - Chroma persistent vector store with a bundled local ONNX embedding function.
 - Ollama generation with grounded prompts and inline citations.
-- Curated knowledge documents for binary search, two pointers, prefix sums, graph traversal, and dynamic programming.
+- A 105-document algorithm corpus: five focused local notes plus 100 pages from [cp-algorithms](https://cp-algorithms.com/), with public source URLs preserved in citations.
 - Twelve labeled retrieval questions plus a Hit@k evaluation script.
 - Optional Supabase/PostgreSQL query-history storage. The app still works when the database is not configured.
 
@@ -37,6 +37,8 @@ python3 -m venv .venv
 ```
 
 The first ingestion downloads Chroma's small embedding model. Later runs use the persisted store in `backend/data/chroma/`.
+
+The expanded `backend/data/knowledge/cp_algorithms/` corpus is derived from the cp-algorithms repository and its CC BY-SA 4.0 license. Each document keeps its original article URL in the `Source:` line so answers can be audited.
 
 Optional local generation requires [Ollama](https://ollama.com/) and the configured model (default `llama3.2:3b`):
 
