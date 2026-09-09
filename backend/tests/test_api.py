@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 from app.main import app
+from app.services.generation import Generator
 
 def test_root_and_health():
     client = TestClient(app)
@@ -19,3 +20,8 @@ def test_query_contract(monkeypatch):
     response = TestClient(app).post("/api/query", json={"question": "How?", "mode": "hint"})
     assert response.status_code == 200
     assert response.json()["citations"][0]["id"] == "s1"
+
+
+def test_rejects_repetitive_full_solution():
+    bad = "The watermelon weighs 1 kilos. " * 8 + "```cpp\nint main() {}\n```"
+    assert Generator._usable_full_solution(bad) is False

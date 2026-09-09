@@ -14,6 +14,22 @@ class Generator:
         value = value or ""
         return value if len(value) <= limit else value[:limit] + "\n[truncated]"
 
+    @staticmethod
+    def _usable_full_solution(answer: str) -> bool:
+        """Reject obvious small-model garbage before showing it as a solution."""
+        text = " ".join((answer or "").split())
+        lower = text.lower()
+        if len(text) < 80 or "```" not in answer:
+            return False
+        if "int main" not in lower and "def main" not in lower and "function main" not in lower:
+            return False
+        # Repeated identical sentences are a common failure mode of the
+        # 135M model when asked for multi-step reasoning.
+        sentences = [part.strip() for part in text.split(".") if part.strip()]
+        if len(sentences) >= 4 and len(set(sentences)) / len(sentences) < 0.55:
+            return False
+        return True
+
     async def generate(
         self,
         question: str,
@@ -81,7 +97,14 @@ Cite a source inline only when it directly supports the response, using [1], [2]
                     },
                 )
                 response.raise_for_status()
-                return response.json().get("response", "").strip() or "The model returned an empty answer."
+                answer = response.json().get("response", "").strip()
+                if mode == "full" and not self._usable_full_solution(answer):
+                    return (
+                        "The local model did not produce a reliable complete solution. "
+                        "I will not present repetitive or incomplete text as code. "
+                        "Use Teach or Hint mode, or connect a stronger coding model."
+                    )
+                return answer or "The model returned an empty answer."
         except Exception as exc:
             logger.error("Ollama generation failed: %s", exc)
             if mode == "quiz":
