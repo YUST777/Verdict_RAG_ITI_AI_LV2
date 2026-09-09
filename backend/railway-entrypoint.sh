@@ -6,9 +6,10 @@ set -eu
 PORT="${PORT:-8000}"
 OLLAMA_URL="${OLLAMA_URL:-http://127.0.0.1:11434}"
 OLLAMA_MODEL="${OLLAMA_MODEL:-llama3.2:3b}"
+OLLAMA_MODELS="${OLLAMA_MODELS:-/root/.ollama/models}"
 OLLAMA_STARTUP_TIMEOUT="${OLLAMA_STARTUP_TIMEOUT:-120}"
 CHROMA_PERSIST_DIR="${CHROMA_PERSIST_DIR:-/app/data/chroma}"
-export OLLAMA_URL OLLAMA_MODEL CHROMA_PERSIST_DIR
+export OLLAMA_URL OLLAMA_MODEL OLLAMA_MODELS CHROMA_PERSIST_DIR
 
 is_local_ollama() {
     case "$OLLAMA_URL" in
@@ -19,6 +20,7 @@ is_local_ollama() {
 
 start_local_ollama() {
     echo "Starting Ollama at ${OLLAMA_URL}"
+    mkdir -p "$OLLAMA_MODELS"
     # OLLAMA_HOST controls the listener used by `ollama serve`; callers can
     # override it for local Docker development, while Railway defaults to the
     # loopback interface because FastAPI shares this container.
