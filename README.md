@@ -46,6 +46,8 @@ Optional local generation requires [Ollama](https://ollama.com/) and the configu
 ollama pull llama3.2:3b
 ```
 
+The graduation brief requires a local Ollama generation path; it does not name a required model and does not mention Gemini. `OLLAMA_TIMEOUT_SECONDS` (default `15`) bounds the wait when a remote deployment has not finished loading its model, after which the API returns the retrieved, cited evidence.
+
 Set `RAG_API_URL` if the FastAPI service runs somewhere other than `http://localhost:8000`.
 
 ## Evaluate retrieval

@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     ollama_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.2:3b"
+    ollama_timeout_seconds: float = 15.0
+    ollama_num_predict: int = 384
     retrieval_k: int = 5
     retrieval_min_score: float = 0.0
     database_url: str | None = None
