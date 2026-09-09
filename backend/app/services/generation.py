@@ -20,4 +20,18 @@ class Generator:
                 return response.json().get("response", "").strip() or "The model returned an empty answer."
         except Exception as exc:
             logger.error("Ollama generation failed: %s", exc)
-            return "Ollama is unavailable. Start the local Ollama service and try again."
+            if context:
+                # Keep the demo useful when Ollama is not installed: retrieval is
+                # still real, so expose a short grounded excerpt instead of a
+                # blank chat response. The UI can show the same citations below it.
+                excerpts = []
+                for index, item in enumerate(context[:3], start=1):
+                    excerpt = " ".join(item.get("document", "").split())[:420]
+                    title = item.get("metadata", {}).get("title", "source")
+                    excerpts.append(f"[{index}] {title}: {excerpt}")
+                return (
+                    "Ollama is unavailable, so here is the retrieved guidance "
+                    "without a generated explanation:\n\n"
+                    + "\n\n".join(excerpts)
+                )
+            return "Ollama is unavailable and no indexed source matched this question. Start Ollama and try again."
