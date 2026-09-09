@@ -26,8 +26,12 @@ interface UseCodePersistenceReturn {
 export function useCodePersistence({ contestId, problemId }: UseCodePersistenceParams): UseCodePersistenceReturn {
   const safeContestId = Array.isArray(contestId) ? contestId[0] : contestId;
   const safeProblemId = Array.isArray(problemId) ? problemId[0] : problemId;
-  const storageKeyCode = `verdict-code-${safeContestId}-${safeProblemId}`;
-  const storageKeyLang = `verdict-lang-${safeContestId}-${safeProblemId}`;
+  // v2 intentionally starts clean after the retired tutor used to persist
+  // unverified model output (for example, min-cut code on Watermelon 4A).
+  // Keeping the old namespace would reload that stale submission after every
+  // deployment, even though the active panel no longer generates editor code.
+  const storageKeyCode = `verdict-code-v2-${safeContestId}-${safeProblemId}`;
+  const storageKeyLang = `verdict-lang-v2-${safeContestId}-${safeProblemId}`;
   const [code, setCode] = useState(DEFAULT_CODE);
   const [language, setLanguage] = useState('cpp');
   const loadedRef = useRef(false);
