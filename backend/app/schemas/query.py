@@ -5,7 +5,7 @@ class QueryRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=20000)
     problem_statement: str | None = Field(default=None, max_length=50000)
     code: str | None = Field(default=None, max_length=50000)
-    mode: str = Field(default="explain", pattern="^(hint|teach|similar|debug|full|explain)$")
+    mode: str = Field(default="explain", pattern="^(hint|teach|similar|debug|full|explain|quiz)$")
     top_k: int | None = Field(default=None, ge=1, le=20)
 
 class Citation(BaseModel):

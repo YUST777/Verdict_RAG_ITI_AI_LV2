@@ -267,7 +267,9 @@ export default function AIAgentPanel({
         abortRef.current = controller;
 
         const lowerPrompt = prompt.toLowerCase();
-        const mode = lowerPrompt.includes('hint')
+        const mode = lowerPrompt.includes('quiz')
+            ? 'quiz'
+            : lowerPrompt.includes('hint')
             ? 'hint'
             : lowerPrompt.includes('debug') || lowerPrompt.includes('bug') || Boolean(selected)
                 ? 'debug'
@@ -298,7 +300,17 @@ export default function AIAgentPanel({
             const citations = Array.isArray(data.citations) ? data.citations : [];
             setResourceSources(citations);
             let answer = data.answer || (isArabic ? 'لم يرجع محرك RAG إجابة.' : 'The RAG service returned an empty answer.');
-            if (citations.length) {
+            if (mode === 'quiz') {
+                try {
+                    const parsedQuiz = JSON.parse(answer.match(/\[[\s\S]*\]/)?.[0] || answer) as Array<{ q?: string; difficulty?: string; line?: number }>;
+                    if (Array.isArray(parsedQuiz)) {
+                        answer = `### Quiz\n\n${parsedQuiz.map((item, index) => `${index + 1}. ${item.q || 'Explain this part of the solution.'}${item.line ? ` *(line ${item.line})*` : ''}${item.difficulty ? ` — ${item.difficulty}` : ''}`).join('\n')}`;
+                    }
+                } catch {
+                    // Keep a model-generated answer visible if it did not follow JSON.
+                }
+            }
+            if (citations.length && mode !== 'quiz') {
                 answer += `\n\n### Retrieved sources\n${citations.map((citation, index) => {
                     const location = citation.chunk === null || citation.chunk === undefined ? citation.source || '' : `${citation.source || ''}, chunk ${citation.chunk}`;
                     return `${index + 1}. **${citation.title || citation.source || 'Source'}** — ${location}`;

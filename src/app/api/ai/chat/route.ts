@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
         const latestUser = [...messages].reverse().find((message) => message?.role === 'user');
         const question = String(latestUser?.content || '').trim();
         if (!question) return NextResponse.json({ error: 'Messages required' }, { status: 400 });
+        const isQuizRequest = /generate\s+5\s+quiz\s+questions|quiz\s+me/i.test(question);
 
         const ragResponse = await fetch(`${RAG_API_URL.replace(/\/$/, '')}/api/query`, {
             method: 'POST',
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
                 question,
                 problem_statement: extractProblemStatement(messages),
                 code: extractCode(question),
-                mode: body?.mode || 'explain',
+                mode: body?.mode || (isQuizRequest ? 'quiz' : 'explain'),
                 top_k: 5,
             }),
             signal: AbortSignal.timeout(90000),
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
         }
 
         const citations = Array.isArray(data.citations) ? data.citations : [];
-        const sourceList = citations.length
+        const sourceList = citations.length && !isQuizRequest
             ? `\n\n### Retrieved sources\n${citations.map((citation: { title?: string; source?: string }, index: number) =>
                 `[${index + 1}] **${citation.title || 'Untitled source'}** — ${citation.source || 'indexed corpus'}`
             ).join('\n')}`

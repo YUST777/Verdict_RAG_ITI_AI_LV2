@@ -13,8 +13,15 @@ async def health(request: Request):
 async def query(payload: QueryRequest, request: Request):
     started = time.perf_counter()
     retriever, generator, history, settings = request.app.state.retriever, request.app.state.generator, request.app.state.history, request.app.state.settings
-    query_text = "\n".join(x for x in [payload.question, payload.problem_statement or "", payload.code or ""] if x)
-    context = retriever.search(query_text, payload.top_k or settings.retrieval_k)
+    # Quiz questions are grounded in the supplied problem/code themselves; a
+    # generic "generate five questions" phrase should not retrieve unrelated
+    # algorithm articles. Other modes use the problem and question first, with
+    # a bounded code slice only when no statement is available.
+    if payload.mode == "quiz":
+        query_text = payload.problem_statement or payload.question
+    else:
+        query_text = "\n".join(x for x in [payload.question, payload.problem_statement or "", (payload.code or "")[:4000] if not payload.problem_statement else ""] if x)
+    context = retriever.search(query_text, payload.top_k or settings.retrieval_k) if query_text.strip() else []
     answer = await generator.generate(payload.question, context, payload.mode, payload.problem_statement, payload.code)
     citations = [Citation(id=x["id"], title=x["metadata"].get("title", "Untitled source"), source=x["metadata"].get("source_url", x["metadata"].get("source", x["metadata"].get("path", "indexed document"))), chunk=x["metadata"].get("chunk"), score=x.get("score"), metadata=x["metadata"]) for x in context]
     await history.record(payload.question, answer, [c.model_dump() for c in citations], payload.mode)
