@@ -25,7 +25,6 @@ class QueryResponse(BaseModel):
     model: str
     grounded: bool
     latency_ms: int
-    verified: bool = False
 
 class HealthResponse(BaseModel):
     status: str
