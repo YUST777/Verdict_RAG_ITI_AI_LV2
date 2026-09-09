@@ -72,6 +72,26 @@ start_local_ollama() {
         ensure_model >/tmp/ollama-pull.log 2>&1 &
         echo "Ollama model pull started in the background (set OLLAMA_PULL_BLOCKING=1 to wait)."
     fi
+
+    # Load the model before accepting public traffic. Without this small
+    # warm-up, the first real RAG request pays the 40-55s model-load penalty
+    # and can look like an unavailable backend to the browser.
+    if [ "${OLLAMA_WARMUP:-0}" = "1" ]; then
+        echo "Warming Ollama model ${OLLAMA_MODEL}"
+        if ! curl --fail --silent --show-error --max-time "${OLLAMA_WARMUP_TIMEOUT:-180}" \
+            "${OLLAMA_URL%/}/api/generate" \
+            -H 'Content-Type: application/json' \
+            -d "{\"model\":\"${OLLAMA_MODEL}\",\"prompt\":\"Reply OK\",\"stream\":false,\"keep_alive\":\"10m\",\"options\":{\"num_predict\":1,\"num_ctx\":128}}" \
+            >/tmp/ollama-warmup.log 2>&1; then
+            cat /tmp/ollama-warmup.log || true
+            if [ "${OLLAMA_REQUIRED:-0}" = "1" ]; then
+                echo "Error: Ollama warm-up failed."
+                exit 1
+            fi
+        else
+            echo "Ollama model warm-up complete"
+        fi
+    fi
 }
 
 if is_local_ollama; then
