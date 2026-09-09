@@ -21,8 +21,8 @@ def chunks(text: str, size: int = 1200, overlap: int = 160):
     return [clean[i:i + size] for i in range(0, len(clean), max(1, size - overlap)) if clean[i:i + size].strip()]
 
 def main():
-    parser = argparse.ArgumentParser(); parser.add_argument("--input", required=True); parser.add_argument("--persist-dir", default=None); parser.add_argument("--collection", default=None); parser.add_argument("--database-url", default=None, help="Optional PostgreSQL/Supabase URL; defaults to DATABASE_URL")
-    args = parser.parse_args(); settings = Settings(chroma_persist_dir=args.persist_dir or Settings().chroma_persist_dir, chroma_collection=args.collection or Settings().chroma_collection)
+    parser = argparse.ArgumentParser(); parser.add_argument("--input", required=True); parser.add_argument("--persist-dir", default=None); parser.add_argument("--collection", default=None)
+    args = parser.parse_args(); defaults = Settings(); settings = Settings(chroma_persist_dir=args.persist_dir or defaults.chroma_persist_dir, chroma_collection=args.collection or defaults.chroma_collection)
     retriever = Retriever(settings.chroma_persist_dir, settings.chroma_collection, settings.embedding_model)
     docs, ids, metas = [], [], []
     for path in sorted(Path(args.input).rglob("*")):
@@ -31,8 +31,6 @@ def main():
             source = hashlib.sha1(f"{path}:{index}".encode()).hexdigest()
             docs.append(chunk); ids.append(source); metas.append({"source_id": source, "title": path.stem, "source": str(path), "path": str(path), "chunk": index})
     indexed = retriever.add(docs, ids, metas)
-    if args.database_url:
-        settings.database_url = args.database_url
     if settings.database_url:
         asyncio.run(HistoryStore(settings).record_documents(metas))
     print(f"Indexed {indexed} chunks into {settings.chroma_persist_dir}")

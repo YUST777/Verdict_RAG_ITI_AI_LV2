@@ -1,0 +1,14 @@
+[
+  {"id":"bs-1","question":"Find the minimum machine time needed to produce k items when feasibility by time is monotonic.","expected_source":"binary_search"},
+  {"id":"bs-2","question":"How do I maximize the minimum distance between placed cows?","expected_source":"binary_search"},
+  {"id":"prefix-1","question":"Answer many static subarray sum queries.","expected_source":"prefix_sums"},
+  {"id":"prefix-2","question":"Apply many offline additions to ranges of an array.","expected_source":"prefix_sums"},
+  {"id":"tp-1","question":"Find a pair with a target sum in a sorted list.","expected_source":"two_pointers"},
+  {"id":"tp-2","question":"Find the longest valid contiguous window with nonnegative values.","expected_source":"two_pointers"},
+  {"id":"graph-1","question":"Find shortest path length in an unweighted graph.","expected_source":"graph_traversal"},
+  {"id":"graph-2","question":"Count connected components in a grid.","expected_source":"graph_traversal"},
+  {"id":"dp-1","question":"Solve a capacity-constrained item selection problem with overlapping states.","expected_source":"dynamic_programming"},
+  {"id":"dp-2","question":"Design a recurrence for sequence alignment and reduce memory by rows.","expected_source":"dynamic_programming"},
+  {"id":"ood-1","question":"Who won the football match yesterday?","expected_source":null},
+  {"id":"ood-2","question":"Give medical advice for a headache.","expected_source":null}
+]
