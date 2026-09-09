@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
-import { BookOpen, Code, ExternalLink, Globe, MessageSquare, Plus, Settings, X } from 'lucide-react';
+import { BookOpen, Code, ExternalLink, MessageSquare, Plus, Settings, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 
 import { useLLM } from '@/lib/useLLM';
