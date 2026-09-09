@@ -18,12 +18,14 @@ class Retriever:
             return True
         try:
             import chromadb
-            from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
+            from chromadb.utils.embedding_functions import DefaultEmbeddingFunction
             Path(self.persist_dir).mkdir(parents=True, exist_ok=True)
             self._chroma = chromadb.PersistentClient(path=self.persist_dir)
-            # Chroma's embedding function lazily downloads the configured local model.
-            # Ingestion/query startup remains graceful if dependencies or network are absent.
-            self._embedder = SentenceTransformerEmbeddingFunction(model_name=self.embedding_model_name)
+            # Chroma's bundled ONNX MiniLM embedder is local and avoids a heavyweight
+            # PyTorch dependency. It downloads its small model on first ingestion/query.
+            # `embedding_model_name` is retained in settings for reproducibility and a
+            # future model swap, while the default remains fully offline after download.
+            self._embedder = DefaultEmbeddingFunction()
             self._collection = self._chroma.get_or_create_collection(self.collection_name, embedding_function=self._embedder, metadata={"hnsw:space": "cosine"})
             self.error = None
             return True
