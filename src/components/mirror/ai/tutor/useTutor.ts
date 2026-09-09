@@ -701,7 +701,10 @@ SPECIAL INSTRUCTION FOR MULTIPLE SOLUTIONS: If the problem allows multiple valid
                 }
             }
 
-            const hasValidSolution = finalSolution.trim().length > 0;
+            // Never write an unverified candidate into the editor.  The old
+            // tutor used to stream the last failed attempt, which made a
+            // wrong answer look like a ready-to-submit solution.
+            const hasValidSolution = finalSolution.trim().length > 0 && judgePassed;
 
             if (hasValidSolution) {
                 updateMessage(thinkMsgId, `<think>\n${finalThinkingText}${finalApproachText ? '\n\n**' + (isArabic ? 'الطريقة:** ' : 'Approach:** ') + finalApproachText : ''}\n</think>\n\n*${isArabic ? 'بكتب الحل...' : 'Writing solution...'}*`, undefined, tabId);
@@ -723,7 +726,7 @@ SPECIAL INSTRUCTION FOR MULTIPLE SOLUTIONS: If the problem allows multiple valid
                 combinedMessage = finalThinkBlock + `\n\n${finalExplanation}\n\n${isArabic ? 'الحل اتكتب في المحرر وكل الاختبارات اتقبلت.' : 'The solution has been written to the editor and passes all test cases.'}`;
                 updateMessage(thinkMsgId, combinedMessage, undefined, tabId);
             } else {
-                combinedMessage = finalThinkBlock + `\n\n${finalExplanation}\n\n${isArabic ? 'الحل ممكن محتاج شوية تعديلات. قول لي أصلحه في الشات لو حابب.' : 'The solution might need adjustments. Try asking me to fix it in the chat.'}`;
+                combinedMessage = finalThinkBlock + `\n\n${finalExplanation}\n\n${isArabic ? 'ملقتش حل متحقق يعدي الاختبارات، فمش هكتبه في المحرر.' : 'I did not get a verified solution, so I left the editor unchanged.'}`;
                 updateMessage(thinkMsgId, combinedMessage, undefined, tabId);
             }
 

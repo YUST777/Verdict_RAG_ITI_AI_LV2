@@ -4,7 +4,9 @@ from pydantic import BaseModel, Field
 class QueryRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=20000)
     problem_statement: str | None = Field(default=None, max_length=50000)
+    problem_id: str | None = Field(default=None, max_length=100)
     code: str | None = Field(default=None, max_length=50000)
+    language: str | None = Field(default=None, max_length=30)
     mode: str = Field(default="explain", pattern="^(hint|teach|similar|debug|full|explain|quiz)$")
     top_k: int | None = Field(default=None, ge=1, le=20)
 
@@ -23,6 +25,7 @@ class QueryResponse(BaseModel):
     model: str
     grounded: bool
     latency_ms: int
+    verified: bool = False
 
 class HealthResponse(BaseModel):
     status: str

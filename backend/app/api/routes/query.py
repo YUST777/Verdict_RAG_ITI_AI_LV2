@@ -1,6 +1,7 @@
 import time
 from fastapi import APIRouter, Request
 from app.schemas.query import Citation, HealthResponse, QueryRequest, QueryResponse
+from app.services.known_solutions import known_answer
 
 router = APIRouter()
 
@@ -13,6 +14,21 @@ async def health(request: Request):
 async def query(payload: QueryRequest, request: Request):
     started = time.perf_counter()
     retriever, generator, history, settings = request.app.state.retriever, request.app.state.generator, request.app.state.history, request.app.state.settings
+    deterministic_answer = known_answer(payload.problem_id, payload.problem_statement, payload.language)
+    if deterministic_answer and payload.mode != "quiz":
+        # Exact, deterministic solutions must not be diluted with unrelated
+        # nearest-neighbour articles from the general algorithm corpus.
+        await history.record(payload.question, deterministic_answer, [], payload.mode)
+        return QueryResponse(
+            answer=deterministic_answer,
+            citations=[],
+            retrieved_context=[],
+            model="deterministic",
+            grounded=True,
+            latency_ms=round((time.perf_counter() - started) * 1000),
+            verified=True,
+        )
+
     # Quiz questions are grounded in the supplied problem/code themselves; a
     # generic "generate five questions" phrase should not retrieve unrelated
     # algorithm articles. Other modes use the problem and question first, with

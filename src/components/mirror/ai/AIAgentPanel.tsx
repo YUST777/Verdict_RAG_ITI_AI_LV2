@@ -284,7 +284,9 @@ export default function AIAgentPanel({
                 body: JSON.stringify({
                     question: prompt,
                     problem_statement: problemDescription || undefined,
+                    problem_id: problemId || undefined,
                     code: selected || userCode.trim() || undefined,
+                    language,
                     mode,
                     top_k: 5,
                 }),
