@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     # Larger contexts make the KV cache consume the remaining memory after
     # Chroma and the 135M model are loaded.
     ollama_num_ctx: int = 1024
+    ollama_num_thread: int = 2
     retrieval_k: int = 5
     retrieval_min_score: float = 0.0
     database_url: str | None = None

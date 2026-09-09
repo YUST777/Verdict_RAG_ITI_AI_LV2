@@ -29,6 +29,7 @@ class Generator:
                             "temperature": 0.2,
                             "num_predict": self.settings.ollama_num_predict,
                             "num_ctx": self.settings.ollama_num_ctx,
+                            "num_thread": self.settings.ollama_num_thread,
                         },
                     },
                 )
