@@ -76,7 +76,7 @@ Problem:
 Code:"""
         elif problem_statement and mode == "teach":
             prompt = f"""Write a correct complete accepted {language or 'C++17'} solution for this programming problem.
-First provide the complete compilable markdown code block. Below the code, write 2 brief sentences explaining the approach and complexity.
+First provide the complete compilable markdown code block. Below the code, write 1 brief sentence explaining the approach.
 Problem:
 {self._clip(problem_statement, 2400)}
 Response:"""
@@ -110,8 +110,8 @@ SOURCES (background only; do not let them replace the problem):
 
 Before answering, silently verify that every claimed "if and only if" condition works on boundary values and a counterexample. Return one explanation and one code block without repetition. Cite a source inline only when it directly supports the response, using [1], [2]."""
         
-        token_limit = min(self.settings.ollama_num_predict, 120 if mode in ("hint", "debug", "quiz") else 240)
-        request_timeout = 20.0 if mode == "quiz" else 45.0
+        token_limit = min(self.settings.ollama_num_predict, 100 if mode in ("hint", "debug", "quiz") else 160)
+        request_timeout = 25.0 if mode == "quiz" else 55.0
         try:
             async with httpx.AsyncClient(timeout=request_timeout) as client:
                 if self.settings.model_api_style.lower() == "llama":
