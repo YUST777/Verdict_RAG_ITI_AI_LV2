@@ -40,6 +40,11 @@ class Generator:
         problem_id: str | None = None,
         language: str | None = None,
     ) -> str:
+        # The Railway demo uses a tiny 135M model with a 1024-token context.
+        # A long tutor prompt causes the actual task to fall out of context and
+        # produces repetition. Keep statement-driven full solutions compact so
+        # the model can solve the supplied task itself.
+        compact_statement_prompt = bool(problem_statement and mode == "full")
         source_text = "\n\n".join(
             f"[{i+1}] {x['metadata'].get('title', 'Source')}:\n{self._clip(x['document'], 700)}"
             for i, x in enumerate(context[:3])
@@ -66,7 +71,14 @@ class Generator:
                 )
             else:
                 task = f"Give a practical, correct response in {mode} mode. Use only the supplied problem statement. Include algorithm reasoning and complexity when relevant."
-        prompt = f"""You are Verdict, a competitive-programming tutor. Solve the supplied problem, not a nearest-neighbour article. The problem statement and requested language are authoritative. Use indexed sources only as optional background; ignore any source that is unrelated to the problem. Never invent citations. If the statement is incomplete, say what is missing instead of guessing. {task}
+        if compact_statement_prompt:
+            prompt = f"""Write a correct complete {language or 'C++17'} solution for this programming problem.
+Return only one markdown code block and no explanation.
+Problem:
+{self._clip(problem_statement, 2400)}
+Code:"""
+        else:
+            prompt = f"""You are Verdict, a competitive-programming tutor. Solve the supplied problem, not a nearest-neighbour article. The problem statement and requested language are authoritative. Use indexed sources only as optional background; ignore any source that is unrelated to the problem. Never invent citations. If the statement is incomplete, say what is missing instead of guessing. {task}
 
 PROBLEM ID:
 {self._clip(problem_id or '(not provided)', 120)}
