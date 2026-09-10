@@ -88,19 +88,30 @@ def extract_cpp(answer: str) -> str:
 
 
 def compile_and_run(source: str, fixtures: list[tuple[str, str]], timeout: float) -> dict:
+    if not source:
+        return {"compiled": False, "compiler_available": True, "compile_stderr": "No C++ code block was returned.", "cases": []}
     with tempfile.TemporaryDirectory(prefix="verdict-bench-") as directory:
         root = Path(directory)
         source_path = root / "solution.cpp"
         binary_path = root / "solution"
         source_path.write_text(source)
-        compile_result = subprocess.run(
-            ["g++", "-std=c++17", "-O2", "-pipe", str(source_path), "-o", str(binary_path)],
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-        )
+        try:
+            compile_result = subprocess.run(
+                ["g++", "-std=c++17", "-O2", "-pipe", str(source_path), "-o", str(binary_path)],
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+            )
+        except FileNotFoundError:
+            return {
+                "compiled": False,
+                "compiler_available": False,
+                "compile_stderr": "g++ was not found. Run this benchmark on a host/container with a C++17 compiler.",
+                "cases": [],
+            }
         result = {
             "compiled": compile_result.returncode == 0,
+            "compiler_available": True,
             "compile_stderr": compile_result.stderr[-2000:],
             "cases": [],
         }
