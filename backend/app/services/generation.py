@@ -53,7 +53,7 @@ class Generator:
         if not source_text:
             source_text = "No indexed source supports this question. State that limitation clearly and avoid invented citations."
         if mode == "quiz":
-            task = "Return ONLY a JSON array of exactly five objects with keys q, type, line, and difficulty. Questions must test the supplied problem and code, progress from easy to hard, and use real 1-based code line numbers when possible. Do not include markdown or commentary."
+            task = "Return ONLY a JSON array of 3 to 5 brief objects with keys q, line, and difficulty. Keep each question very concise (under 12 words). Do not include markdown or commentary."
         elif mode == "hint":
             task = "Give 1-2 brief bullet points (under 40 words total) with the core observation or approach. Do not give full code."
         elif mode == "teach":
@@ -85,7 +85,8 @@ Response:"""
 PROBLEM:
 {self._clip(problem_statement or '(not provided)', 1800)}
 CODE:
-{self._clip(code or '(not provided)', 900)}"""
+{self._clip(code or '(not provided)', 900)}
+JSON:"""
         else:
             prompt = f"""You are Verdict, a competitive-programming tutor. Solve the supplied problem, not a nearest-neighbour article. The problem statement and requested language are authoritative. Use indexed sources only as optional background; ignore any source that is unrelated to the problem. Never invent citations. If the statement is incomplete, say what is missing instead of guessing. {task}
 
@@ -109,9 +110,10 @@ SOURCES (background only; do not let them replace the problem):
 
 Before answering, silently verify that every claimed "if and only if" condition works on boundary values and a counterexample. Return one explanation and one code block without repetition. Cite a source inline only when it directly supports the response, using [1], [2]."""
         
-        token_limit = min(self.settings.ollama_num_predict, 140 if mode in ("hint", "debug") else 280)
+        token_limit = min(self.settings.ollama_num_predict, 120 if mode in ("hint", "debug", "quiz") else 240)
+        request_timeout = 20.0 if mode == "quiz" else 45.0
         try:
-            async with httpx.AsyncClient(timeout=self.settings.ollama_timeout_seconds) as client:
+            async with httpx.AsyncClient(timeout=request_timeout) as client:
                 if self.settings.model_api_style.lower() == "llama":
                     response = await client.post(
                         f"{self.settings.ollama_url.rstrip('/')}/v1/chat/completions",
@@ -145,6 +147,21 @@ Before answering, silently verify that every claimed "if and only if" condition 
                     if self.settings.model_api_style.lower() == "llama"
                     else body.get("response", "")
                 ).strip()
+                if mode == "quiz":
+                    import json
+                    try:
+                        raw = answer
+                        if "```" in raw:
+                            parts = raw.split("```")
+                            raw = parts[1] if len(parts) > 1 else raw
+                            if raw.startswith("json"):
+                                raw = raw[4:].strip()
+                        parsed = json.loads(raw)
+                        if isinstance(parsed, list) and len(parsed) > 0:
+                            return json.dumps(parsed)
+                    except Exception:
+                        pass
+                    return self._quiz_fallback(code, problem_statement)
                 if answer.count("```") % 2 != 0:
                     answer += "\n```"
                 if mode == "full" and not self._usable_full_solution(answer):
