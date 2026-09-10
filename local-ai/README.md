@@ -24,10 +24,42 @@ production variable `RAG_API_URL` to that URL and `RAG_API_KEY` to the same
 secret, then redeploy the frontend. The local API is also available at
 `http://127.0.0.1:8001` for testing.
 
-The MX450 currently cannot be passed to Docker because the NVIDIA container
-runtime is not installed. This image therefore runs CPU inference and stays
-within the laptop's 16 GB RAM. Once `nvidia-container-toolkit` is installed,
-the model command can use GPU offload; Alpine/CUDA is intentionally not mixed
-into this image because CUDA's glibc runtime is not compatible with Alpine's
-musl base.
+The base Alpine profile runs CPU inference. Your Docker installation currently
+does not have the NVIDIA container runtime, so it does not use the MX450. The
+GPU profile below uses a glibc/CUDA image because CUDA is not compatible with
+Alpine's musl base.
 
+## Larger GPU model
+
+The repository also includes `Dockerfile.model-cuda` and
+`docker-compose.gpu.yml`. That profile uses Qwen2.5-Coder 3B Q3_K_M (about
+1.7 GB) with 16 transformer layers offloaded to the MX450 and the rest on CPU:
+
+```sh
+docker compose -f local-ai/docker-compose.gpu.yml up -d --build
+```
+
+It requires the NVIDIA device files shown by `nvidia-smi` and a CUDA runtime
+image. If Docker has the NVIDIA Container Toolkit installed, replace the
+manual device mounts with `--gpus all` or the equivalent Compose GPU setting.
+The 3B model is more capable than the 1.5B model but still requires compiling
+and running generated code through Judge0 before treating an answer as
+accepted.
+
+## Benchmark the model
+
+Run the executable benchmark after the model server is reachable. It asks the
+same five small problems every time, extracts the C++17 block, compiles it,
+and runs edge-case fixtures. A problem receives credit only when every fixture
+passes:
+
+```sh
+python local-ai/benchmark_model.py \\
+  --url http://127.0.0.1:8082 \\
+  --model qwen2.5-coder:3b-q3-cuda \\
+  --json /tmp/verdict-model-report.json
+```
+
+The report includes the raw answer, compiler diagnostics, per-case output, and
+latency. Change `--url` to the model service address when running the script
+inside the backend container.
