@@ -68,12 +68,24 @@ class Generator:
         else:
             task = f"Provide a concise, practical answer (under 60 words) in {mode} mode. Include clean code if appropriate."
 
-        if compact_statement_prompt:
-            prompt = f"""Write a correct complete {language or 'C++17'} solution for this programming problem.
+        if problem_statement and mode == "full":
+            prompt = f"""Write a correct complete accepted {language or 'C++17'} solution for this programming problem.
 Return only one markdown code block and no explanation.
 Problem:
 {self._clip(problem_statement, 2400)}
 Code:"""
+        elif problem_statement and mode == "teach":
+            prompt = f"""Write a correct complete accepted {language or 'C++17'} solution for this programming problem.
+First provide the complete compilable markdown code block. Below the code, write 2 brief sentences explaining the approach and complexity.
+Problem:
+{self._clip(problem_statement, 2400)}
+Response:"""
+        elif mode == "quiz":
+            prompt = f"""You are Verdict, a competitive-programming tutor. {task}
+PROBLEM:
+{self._clip(problem_statement or '(not provided)', 1800)}
+CODE:
+{self._clip(code or '(not provided)', 900)}"""
         else:
             prompt = f"""You are Verdict, a competitive-programming tutor. Solve the supplied problem, not a nearest-neighbour article. The problem statement and requested language are authoritative. Use indexed sources only as optional background; ignore any source that is unrelated to the problem. Never invent citations. If the statement is incomplete, say what is missing instead of guessing. {task}
 
@@ -97,7 +109,7 @@ SOURCES (background only; do not let them replace the problem):
 
 Before answering, silently verify that every claimed "if and only if" condition works on boundary values and a counterexample. Return one explanation and one code block without repetition. Cite a source inline only when it directly supports the response, using [1], [2]."""
         
-        token_limit = min(self.settings.ollama_num_predict, 130 if mode in ("hint", "debug") else 160)
+        token_limit = min(self.settings.ollama_num_predict, 140 if mode in ("hint", "debug") else 280)
         try:
             async with httpx.AsyncClient(timeout=self.settings.ollama_timeout_seconds) as client:
                 if self.settings.model_api_style.lower() == "llama":
@@ -133,6 +145,8 @@ Before answering, silently verify that every claimed "if and only if" condition 
                     if self.settings.model_api_style.lower() == "llama"
                     else body.get("response", "")
                 ).strip()
+                if answer.count("```") % 2 != 0:
+                    answer += "\n```"
                 if mode == "full" and not self._usable_full_solution(answer):
                     return (
                         "The local model did not produce a reliable complete solution. "

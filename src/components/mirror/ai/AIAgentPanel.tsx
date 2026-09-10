@@ -379,12 +379,6 @@ export default function AIAgentPanel({
                     // Keep a model-generated answer visible if it did not follow JSON.
                 }
             }
-            if (citations.length && mode !== 'quiz') {
-                answer += `\n\n### Retrieved sources\n${citations.map((citation, index) => {
-                    const location = citation.chunk === null || citation.chunk === undefined ? citation.source || '' : `${citation.source || ''}, chunk ${citation.chunk}`;
-                    return `${index + 1}. **${citation.title || citation.source || 'Source'}** — ${location}`;
-                }).join('\n')}`;
-            }
 
             setIsLoadingByTab((previous) => ({ ...previous, [tabId]: false }));
             const words = answer.split(' ');
