@@ -39,12 +39,25 @@ The repository also includes `Dockerfile.model-cuda` and
 docker compose -f local-ai/docker-compose.gpu.yml up -d --build
 ```
 
+The GPU profile creates a temporary Cloudflare URL; read it with:
+
+```sh
+docker compose -f local-ai/docker-compose.gpu.yml logs -f tunnel
+```
+
 It requires the NVIDIA device files shown by `nvidia-smi` and a CUDA runtime
 image. If Docker has the NVIDIA Container Toolkit installed, replace the
 manual device mounts with `--gpus all` or the equivalent Compose GPU setting.
 The 3B model is more capable than the 1.5B model but still requires compiling
 and running generated code through Judge0 before treating an answer as
-accepted.
+accepted. The GPU profile gives it a larger 768-token response budget so a
+complete explanation and code block are less likely to be cut off; it is still
+not a guarantee of correctness.
+
+The backend image preloads Chroma's roughly 80 MB ONNX embedding model during
+the build. This is required because the backend network is intentionally
+offline at runtime; without it, the first RAG query would fail while trying to
+download the embedder.
 
 ## Benchmark the model
 

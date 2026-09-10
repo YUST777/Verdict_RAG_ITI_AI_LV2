@@ -79,7 +79,12 @@ def call_model(url: str, model: str, prompt: str, timeout: float, max_tokens: in
 def extract_cpp(answer: str) -> str:
     blocks = re.findall(r"```(?:cpp|c\+\+|C\+\+)?\s*\n?(.*?)```", answer, flags=re.IGNORECASE | re.DOTALL)
     if blocks:
-        return max(blocks, key=len).strip()
+        source = max(blocks, key=len).strip()
+        # Some models emit ``` followed by a standalone language tag instead
+        # of ```cpp. Keep that tag out of the compiler input.
+        if re.match(r"^(?:cpp|c\+\+|c)\s*\n", source, flags=re.IGNORECASE):
+            source = source.split("\n", 1)[1].lstrip()
+        return source
     # A code-only answer may omit fences.  Keep this fallback diagnostic; it
     # is still judged by the compiler and therefore cannot receive credit for
     # prose that merely resembles a solution.

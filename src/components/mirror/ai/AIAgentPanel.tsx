@@ -20,6 +20,14 @@ interface Citation {
     type?: 'web' | 'youtube';
 }
 
+interface VerificationResult {
+    passed?: boolean;
+    testsPassed?: number;
+    totalTests?: number;
+    verdict?: string;
+    error?: string;
+}
+
 interface Message {
     id: string;
     role: 'user' | 'assistant' | 'sources';
@@ -86,11 +94,22 @@ function parseStoredMessages(value: unknown): Record<string, Message[]> {
     return Object.keys(result).length ? result : { default: [] };
 }
 
+function extractGeneratedCode(answer: string): string | null {
+    const match = answer.match(/```(?:[\w+#.-]+)?\s*([\s\S]*?)```/i);
+    if (!match?.[1]) return null;
+    let code = match[1].trim();
+    // Small local models sometimes emit ``` followed by a standalone `cpp`
+    // line. That marker is metadata, not source code.
+    if (/^(?:cpp|c\+\+|c)\s*\n/i.test(code)) code = code.replace(/^(?:cpp|c\+\+|c)\s*\n/i, '').trim();
+    return code || null;
+}
+
 export default function AIAgentPanel({
     selectedCode,
     userCode = '',
     language = 'cpp',
     problemDescription,
+    testCases = [],
     initialQuestion,
     codeforcesRating,
     onSelectionCleared,
@@ -302,6 +321,42 @@ export default function AIAgentPanel({
             const citations = Array.isArray(data.citations) ? data.citations : [];
             setResourceSources(citations);
             let answer = data.answer || (isArabic ? 'لم يرجع محرك RAG إجابة.' : 'The RAG service returned an empty answer.');
+
+            // A small local model can write plausible but incorrect code. When
+            // examples are available, send the extracted solution through the
+            // same Judge0 endpoint used by the Test panel before presenting it
+            // as verified. A failed or unavailable check is shown explicitly.
+            if (mode === 'full' && testCases.length > 0) {
+                const generatedCode = extractGeneratedCode(answer);
+                if (generatedCode) {
+                    try {
+                        const verificationResponse = await fetch('/api/judge/test', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                sourceCode: generatedCode,
+                                language,
+                                testCases,
+                                timeLimit: 2000,
+                                memoryLimit: 256,
+                            }),
+                            signal: controller.signal,
+                        });
+                        const verification = await verificationResponse.json().catch(() => ({})) as VerificationResult;
+                        if (verificationResponse.ok && verification.passed) {
+                            answer += `\n\n### Verification\nPassed ${verification.testsPassed ?? testCases.length}/${verification.totalTests ?? testCases.length} supplied test cases.`;
+                        } else {
+                            const detail = verification.error || verification.verdict || (verificationResponse.ok ? 'at least one supplied test failed' : `judge service returned ${verificationResponse.status}`);
+                            answer += `\n\n### Verification\nThe generated code was **not verified** (${detail}). Run the tests and inspect the counterexample before submitting.`;
+                        }
+                    } catch (verificationError) {
+                        if (verificationError instanceof DOMException && verificationError.name === 'AbortError') throw verificationError;
+                        answer += '\n\n### Verification\nThe generated code was not verified because the judge service is unavailable.';
+                    }
+                } else {
+                    answer += '\n\n### Verification\nNo complete code block was returned, so the solution was not verified.';
+                }
+            }
             if (mode === 'quiz') {
                 try {
                     const parsedQuiz = JSON.parse(answer.match(/\[[\s\S]*\]/)?.[0] || answer) as Array<{ q?: string; difficulty?: string; line?: number }>;
@@ -338,7 +393,7 @@ export default function AIAgentPanel({
             setAiStatusByTab((previous) => ({ ...previous, [tabId]: '' }));
             if (abortRef.current === controller) abortRef.current = null;
         }
-    }, [activeChatTab, appendMessage, inputByTab, isArabic, isLoadingByTab, language, onSelectionCleared, problemDescription, selectedCode, selectedLineReference, updateMessage, userCode]);
+    }, [activeChatTab, appendMessage, inputByTab, isArabic, isLoadingByTab, language, onSelectionCleared, problemDescription, selectedCode, selectedLineReference, testCases, updateMessage, userCode]);
 
     return (
         <div className="flex flex-col h-full bg-[#121212] min-h-0 text-white" data-lenis-prevent>

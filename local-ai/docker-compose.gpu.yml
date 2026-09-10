@@ -1,0 +1,70 @@
+name: verdict-local-ai-gpu
+
+services:
+  model:
+    build:
+      context: .
+      dockerfile: Dockerfile.model-cuda
+    image: verdict-qwen-coder:3b-q3-cuda
+    restart: unless-stopped
+    networks:
+      - ai_internal
+    devices:
+      - /dev/nvidia0:/dev/nvidia0
+      - /dev/nvidiactl:/dev/nvidiactl
+      - /dev/nvidia-uvm:/dev/nvidia-uvm
+      - /dev/nvidia-uvm-tools:/dev/nvidia-uvm-tools
+    volumes:
+      - /usr/lib/x86_64-linux-gnu/libcuda.so.1:/usr/lib/x86_64-linux-gnu/libcuda.so.1:ro
+      - /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.580.173.02:/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1:ro
+      # The host driver supplies PTX JIT and GPU compiler libraries; CUDA
+      # can discover the device but cannot warm up without these mounts.
+      - /usr/lib/x86_64-linux-gnu/libnvidia-ptxjitcompiler.so.580.173.02:/usr/lib/x86_64-linux-gnu/libnvidia-ptxjitcompiler.so.1:ro
+      - /usr/lib/x86_64-linux-gnu/libnvidia-gpucomp.so.580.173.02:/usr/lib/x86_64-linux-gnu/libnvidia-gpucomp.so.1:ro
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 60s
+
+  backend:
+    extends:
+      file: docker-compose.yml
+      service: backend
+    environment:
+      OLLAMA_URL: http://model:8080
+      OLLAMA_MODEL: qwen2.5-coder:3b-q3-cuda
+      MODEL_API_STYLE: llama
+      OLLAMA_NUM_CTX: 2048
+      # Full explanations plus compilable code need more than the CPU model's
+      # small output budget. The UI still labels a response unverified until
+      # Judge0 accepts it.
+      OLLAMA_NUM_PREDICT: 768
+      OLLAMA_NUM_THREAD: 8
+      OLLAMA_TIMEOUT_SECONDS: 180
+      OLLAMA_PULL_MODEL: "0"
+      OLLAMA_REQUIRED: "0"
+      SKIP_INGEST: "1"
+    depends_on:
+      model:
+        condition: service_healthy
+
+  tunnel:
+    extends:
+      file: docker-compose.yml
+      service: tunnel
+    depends_on:
+      backend:
+        condition: service_started
+
+networks:
+  ai_internal:
+    internal: true
+  internet:
+    driver: bridge

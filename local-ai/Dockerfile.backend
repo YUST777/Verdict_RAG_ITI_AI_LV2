@@ -7,6 +7,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 COPY backend/requirements.txt ./requirements.txt
 RUN pip install -r requirements.txt
+# Download Chroma's small ONNX embedding model while the image is built.
+# The running backend is on an internal network and must never need internet
+# just to embed a query.
+RUN python -c "from chromadb.utils.embedding_functions import DefaultEmbeddingFunction; DefaultEmbeddingFunction()(['offline warmup'])"
 
 COPY backend/app ./app
 COPY backend/scripts ./scripts
