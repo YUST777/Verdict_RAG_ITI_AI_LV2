@@ -23,11 +23,12 @@ async def query(payload: QueryRequest, request: Request, x_rag_api_key: str | No
         # Quiz generation is about the supplied problem/code, not a nearest
         # algorithm article. Avoid unrelated retrieval and citations entirely.
         query_text = ""
-    elif payload.mode == "full":
+    elif payload.mode == "full" or payload.problem_statement:
         # The current corpus is algorithm notes, not a catalog of exact
-        # Codeforces statements. Feeding nearest neighbours into code
-        # generation caused unrelated min-cut snippets to replace easy
-        # problem solutions. Full solutions must be based on the statement.
+        # Codeforces statements. Feeding nearest neighbours into a supplied
+        # problem caused unrelated articles to replace easy problem solutions.
+        # When the client supplies the statement, generation must be based on
+        # that statement for every mode, not a nearest-neighbour article.
         query_text = ""
     else:
         query_text = "\n".join(x for x in [payload.question, payload.problem_statement or "", (payload.code or "")[:4000] if not payload.problem_statement else ""] if x)

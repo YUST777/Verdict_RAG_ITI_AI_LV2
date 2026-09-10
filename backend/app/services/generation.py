@@ -45,7 +45,12 @@ class Generator:
             for i, x in enumerate(context[:3])
         )
         source_text = self._clip(source_text, 2200)
-        if not source_text:
+        if problem_statement:
+            # The caller supplied the authoritative statement. For beginner
+            # Codeforces tasks, unrelated indexed articles actively hurt a
+            # tiny model, so keep the prompt focused on the statement.
+            source_text = "No external source is needed; solve only the supplied problem statement."
+        elif not source_text:
             source_text = "No indexed source supports this question. State that limitation clearly and avoid invented citations."
         if mode == "quiz":
             task = "Return ONLY a JSON array of exactly five objects with keys q, type, line, and difficulty. Questions must test the supplied problem and code, progress from easy to hard, and use real 1-based code line numbers when possible. Do not include markdown or commentary."
@@ -60,7 +65,7 @@ class Generator:
                     "Do not claim that the code passed a judge; it has not been executed."
                 )
             else:
-                task = f"Give a practical, correct response in {mode} mode. Include algorithm reasoning and complexity when relevant."
+                task = f"Give a practical, correct response in {mode} mode. Use only the supplied problem statement. Include algorithm reasoning and complexity when relevant."
         prompt = f"""You are Verdict, a competitive-programming tutor. Solve the supplied problem, not a nearest-neighbour article. The problem statement and requested language are authoritative. Use indexed sources only as optional background; ignore any source that is unrelated to the problem. Never invent citations. If the statement is incomplete, say what is missing instead of guessing. {task}
 
 PROBLEM ID:
