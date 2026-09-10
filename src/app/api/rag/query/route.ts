@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 
 const RAG_API_URL = process.env.RAG_API_URL || 'http://127.0.0.1:8000';
+const RAG_API_KEY = process.env.RAG_API_KEY;
 
 /** Same-origin bridge from the Verdict workspace to the local FastAPI RAG service. */
 export async function POST(request: NextRequest) {
@@ -10,7 +11,10 @@ export async function POST(request: NextRequest) {
     const payload = await request.json();
     const response = await fetch(`${RAG_API_URL.replace(/\/$/, '')}/api/query`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(RAG_API_KEY ? { 'x-rag-api-key': RAG_API_KEY } : {}),
+      },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(120_000),
       cache: 'no-store',

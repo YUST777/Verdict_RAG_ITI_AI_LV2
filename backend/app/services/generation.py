@@ -53,8 +53,10 @@ class Generator:
             if mode == "full":
                 task = (
                     f"Solve the exact problem yourself in {language or 'the requested programming language'}. "
-                    "Explain the key observation, algorithm, proof, edge cases, and complexity, then provide a "
-                    "complete compilable solution in that language. Do not copy an unrelated source algorithm. "
+                    "Keep the explanation concise (under 220 words), but cover the key observation, algorithm, "
+                    "proof, edge cases, and complexity, then provide a complete compilable solution in that language. "
+                    "Check the samples and at least one smallest valid and invalid case before finalizing. "
+                    "Do not copy an unrelated source algorithm. "
                     "Do not claim that the code passed a judge; it has not been executed."
                 )
             else:
@@ -79,25 +81,42 @@ QUESTION:
 SOURCES (background only; do not let them replace the problem):
 {source_text}
 
-Cite a source inline only when it directly supports the response, using [1], [2]."""
+Before answering, silently verify that every claimed "if and only if" condition works on boundary values and a counterexample. Return one explanation and one code block without repetition. Cite a source inline only when it directly supports the response, using [1], [2]."""
         try:
             async with httpx.AsyncClient(timeout=self.settings.ollama_timeout_seconds) as client:
-                response = await client.post(
-                    f"{self.settings.ollama_url.rstrip('/')}/api/generate",
-                    json={
-                        "model": self.settings.ollama_model,
-                        "prompt": prompt,
-                        "stream": False,
-                        "options": {
-                            "temperature": 0.2,
-                            "num_predict": self.settings.ollama_num_predict,
-                            "num_ctx": self.settings.ollama_num_ctx,
-                            "num_thread": self.settings.ollama_num_thread,
+                if self.settings.model_api_style.lower() == "llama":
+                    response = await client.post(
+                        f"{self.settings.ollama_url.rstrip('/')}/v1/chat/completions",
+                        json={
+                            "model": self.settings.ollama_model,
+                            "messages": [{"role": "user", "content": prompt}],
+                            "temperature": 0.1,
+                            "max_tokens": self.settings.ollama_num_predict,
+                            "stream": False,
                         },
-                    },
-                )
+                    )
+                else:
+                    response = await client.post(
+                        f"{self.settings.ollama_url.rstrip('/')}/api/generate",
+                        json={
+                            "model": self.settings.ollama_model,
+                            "prompt": prompt,
+                            "stream": False,
+                            "options": {
+                            "temperature": 0.1,
+                                "num_predict": self.settings.ollama_num_predict,
+                                "num_ctx": self.settings.ollama_num_ctx,
+                                "num_thread": self.settings.ollama_num_thread,
+                            },
+                        },
+                    )
                 response.raise_for_status()
-                answer = response.json().get("response", "").strip()
+                body = response.json()
+                answer = (
+                    body.get("choices", [{}])[0].get("message", {}).get("content", "")
+                    if self.settings.model_api_style.lower() == "llama"
+                    else body.get("response", "")
+                ).strip()
                 if mode == "full" and not self._usable_full_solution(answer):
                     return (
                         "The local model did not produce a reliable complete solution. "

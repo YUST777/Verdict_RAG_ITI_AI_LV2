@@ -9,6 +9,7 @@ import { checkRateLimit } from '@/lib/simple-rate-limit';
  * without exposing model keys in the browser or reintroducing authentication.
  */
 const RAG_API_URL = process.env.RAG_API_URL || 'http://localhost:8000';
+const RAG_API_KEY = process.env.RAG_API_KEY;
 
 function extractProblemStatement(messages: Array<{ role?: string; content?: string }>) {
     const system = messages.find((message) => message.role === 'system')?.content || '';
@@ -37,7 +38,10 @@ export async function POST(request: NextRequest) {
 
         const ragResponse = await fetch(`${RAG_API_URL.replace(/\/$/, '')}/api/query`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                ...(RAG_API_KEY ? { 'x-rag-api-key': RAG_API_KEY } : {}),
+            },
             body: JSON.stringify({
                 question,
                 problem_statement: extractProblemStatement(messages),

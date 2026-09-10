@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     ollama_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.2:3b"
+    # `ollama` keeps Railway compatibility; `llama` talks to an offline
+    # llama.cpp server in the local Alpine model container.
+    model_api_style: str = "ollama"
     ollama_timeout_seconds: float = 15.0
     ollama_num_predict: int = 384
     # Keep the small Railway Ollama container under its 1 GB memory limit.
@@ -40,6 +43,7 @@ class Settings(BaseSettings):
     retrieval_k: int = 5
     retrieval_min_score: float = 0.0
     database_url: str | None = None
+    rag_api_key: str | None = None
     cors_origins: str = "*"
     model_config = SettingsConfigDict(env_file=(".env", "../.env"), env_file_encoding="utf-8", extra="ignore")
 

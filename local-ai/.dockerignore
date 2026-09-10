@@ -1,0 +1,7 @@
+.git
+.next
+node_modules
+backend/.venv
+backend/data/chroma
+*.log
+

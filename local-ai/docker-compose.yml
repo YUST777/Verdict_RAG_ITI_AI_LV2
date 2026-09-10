@@ -1,0 +1,66 @@
+name: verdict-local-ai
+
+services:
+  model:
+    build:
+      context: .
+      dockerfile: Dockerfile.model
+    image: verdict-qwen-coder:1.5b-q4
+    restart: unless-stopped
+    # The model has no route to the public internet. It is reachable only by
+    # the local RAG service and the tunnel sidecar on the private network.
+    networks:
+      - ai_internal
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  backend:
+    build:
+      context: ..
+      dockerfile: local-ai/Dockerfile.backend
+    image: verdict-rag-backend:local
+    restart: unless-stopped
+    depends_on:
+      model:
+        condition: service_healthy
+    environment:
+      OLLAMA_URL: http://model:8080
+      OLLAMA_MODEL: qwen2.5-coder:1.5b-q4
+      MODEL_API_STYLE: llama
+      OLLAMA_NUM_CTX: 2048
+      OLLAMA_NUM_PREDICT: 384
+      OLLAMA_NUM_THREAD: 8
+      OLLAMA_TIMEOUT_SECONDS: 180
+      OLLAMA_PULL_MODEL: "0"
+      OLLAMA_REQUIRED: "0"
+      SKIP_INGEST: "1"
+      RAG_API_KEY: ${RAG_API_KEY:?set RAG_API_KEY in local-ai/.env}
+    networks:
+      - ai_internal
+    expose:
+      - "8000"
+    ports:
+      - "127.0.0.1:8001:8000"
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_started
+    command: tunnel --no-autoupdate --url http://backend:8000
+    networks:
+      - ai_internal
+      - internet
+
+networks:
+  ai_internal:
+    internal: true
+  internet:
+    driver: bridge

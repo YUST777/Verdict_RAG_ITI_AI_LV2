@@ -1,5 +1,5 @@
 import time
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Header, HTTPException, Request
 from app.schemas.query import Citation, HealthResponse, QueryRequest, QueryResponse
 
 router = APIRouter()
@@ -10,9 +10,11 @@ async def health(request: Request):
     return HealthResponse(status="ok", chroma_ready=retriever.ready, ollama_configured=bool(settings.ollama_url and settings.ollama_model), database_configured=history.configured, document_count=retriever.count())
 
 @router.post("/query", response_model=QueryResponse)
-async def query(payload: QueryRequest, request: Request):
+async def query(payload: QueryRequest, request: Request, x_rag_api_key: str | None = Header(default=None)):
     started = time.perf_counter()
     retriever, generator, history, settings = request.app.state.retriever, request.app.state.generator, request.app.state.history, request.app.state.settings
+    if getattr(settings, "rag_api_key", None) and x_rag_api_key != settings.rag_api_key:
+        raise HTTPException(status_code=401, detail="Invalid RAG API key")
     # Quiz questions are grounded in the supplied problem/code themselves; a
     # generic "generate five questions" phrase should not retrieve unrelated
     # algorithm articles. Other modes use the problem and question first, with

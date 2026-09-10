@@ -1,0 +1,31 @@
+# Offline runtime: the final image is Alpine and contains the model weights.
+# Network access is disabled by the compose network (internal: true).
+FROM alpine:3.22 AS build
+
+RUN apk add --no-cache build-base cmake git linux-headers
+ARG LLAMA_CPP_REF=b5999
+RUN git clone --depth 1 --branch ${LLAMA_CPP_REF} https://github.com/ggml-org/llama.cpp.git /src
+RUN cmake -S /src -B /build \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/opt/llama \
+    -DGGML_NATIVE=OFF \
+    -DGGML_OPENMP=ON \
+    -DGGML_BLAS=OFF \
+    -DLLAMA_BUILD_SERVER=ON \
+    -DLLAMA_CURL=OFF \
+    -DBUILD_SHARED_LIBS=OFF \
+    && cmake --build /build --target llama-server -j$(getconf _NPROCESSORS_ONLN) \
+    && install -Dm755 /build/bin/llama-server /opt/llama/bin/llama-server
+
+FROM alpine:3.22
+RUN apk add --no-cache libgcc libstdc++ libgomp
+COPY --from=build /opt/llama/bin/llama-server /usr/local/bin/llama-server
+
+ARG MODEL_URL=https://huggingface.co/Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF/resolve/main/qwen2.5-coder-1.5b-instruct-q4_k_m.gguf?download=true
+RUN mkdir -p /models \
+    && wget -q -O /models/qwen2.5-coder-1.5b-instruct-q4_k_m.gguf "$MODEL_URL" \
+    && test -s /models/qwen2.5-coder-1.5b-instruct-q4_k_m.gguf
+
+EXPOSE 8080
+ENTRYPOINT ["/usr/local/bin/llama-server"]
+CMD ["--model", "/models/qwen2.5-coder-1.5b-instruct-q4_k_m.gguf", "--host", "0.0.0.0", "--port", "8080", "--ctx-size", "2048", "--threads", "8", "--n-gpu-layers", "0", "--parallel", "1"]
