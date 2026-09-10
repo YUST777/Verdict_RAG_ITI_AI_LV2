@@ -50,9 +50,8 @@ image. If Docker has the NVIDIA Container Toolkit installed, replace the
 manual device mounts with `--gpus all` or the equivalent Compose GPU setting.
 The 3B model is more capable than the 1.5B model but still requires compiling
 and running generated code through Judge0 before treating an answer as
-accepted. The GPU profile gives it a larger 768-token response budget so a
-complete explanation and code block are less likely to be cut off; it is still
-not a guarantee of correctness.
+accepted. The GPU profile uses a 512-token response budget to keep this small
+model focused; it is still not a guarantee of correctness.
 
 The backend image preloads Chroma's roughly 80 MB ONNX embedding model during
 the build. This is required because the backend network is intentionally
