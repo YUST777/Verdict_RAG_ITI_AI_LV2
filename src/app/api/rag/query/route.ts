@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 const RAG_API_URL = process.env.RAG_API_URL || 'http://127.0.0.1:8000';
 const RAG_API_KEY = process.env.RAG_API_KEY;

@@ -54,18 +54,20 @@ class Generator:
             source_text = "No indexed source supports this question. State that limitation clearly and avoid invented citations."
         if mode == "quiz":
             task = "Return ONLY a JSON array of exactly five objects with keys q, type, line, and difficulty. Questions must test the supplied problem and code, progress from easy to hard, and use real 1-based code line numbers when possible. Do not include markdown or commentary."
+        elif mode == "hint":
+            task = "Give 1-2 brief bullet points (under 40 words total) with the core observation or approach. Do not give full code."
+        elif mode == "teach":
+            task = "Keep the explanation brief (under 60 words): state 1) Key Observation, 2) Algorithm & Complexity, then provide the clean compilable code."
+        elif mode == "debug":
+            task = "Identify the bug in 2 concise sentences (under 45 words). Show only the corrected snippet."
+        elif mode == "full":
+            task = (
+                f"Solve the exact problem yourself in {language or 'the requested programming language'}. "
+                "Keep explanation under 40 words, then provide the complete compilable solution in a single markdown code block."
+            )
         else:
-            if mode == "full":
-                task = (
-                    f"Solve the exact problem yourself in {language or 'the requested programming language'}. "
-                    "Keep the explanation concise (under 220 words), but cover the key observation, algorithm, "
-                    "proof, edge cases, and complexity, then provide a complete compilable solution in that language. "
-                    "Check the samples and at least one smallest valid and invalid case before finalizing. "
-                    "Do not copy an unrelated source algorithm. "
-                    "Do not claim that the code passed a judge; it has not been executed."
-                )
-            else:
-                task = f"Give a practical, correct response in {mode} mode. Use only the supplied problem statement. Include algorithm reasoning and complexity when relevant."
+            task = f"Provide a concise, practical answer (under 60 words) in {mode} mode. Include clean code if appropriate."
+
         if compact_statement_prompt:
             prompt = f"""Write a correct complete {language or 'C++17'} solution for this programming problem.
 Return only one markdown code block and no explanation.
@@ -94,6 +96,8 @@ SOURCES (background only; do not let them replace the problem):
 {source_text}
 
 Before answering, silently verify that every claimed "if and only if" condition works on boundary values and a counterexample. Return one explanation and one code block without repetition. Cite a source inline only when it directly supports the response, using [1], [2]."""
+        
+        token_limit = min(self.settings.ollama_num_predict, 130 if mode in ("hint", "debug") else 160)
         try:
             async with httpx.AsyncClient(timeout=self.settings.ollama_timeout_seconds) as client:
                 if self.settings.model_api_style.lower() == "llama":
@@ -103,7 +107,7 @@ Before answering, silently verify that every claimed "if and only if" condition 
                             "model": self.settings.ollama_model,
                             "messages": [{"role": "user", "content": prompt}],
                             "temperature": 0.1,
-                            "max_tokens": self.settings.ollama_num_predict,
+                            "max_tokens": token_limit,
                             "stream": False,
                         },
                     )
@@ -115,8 +119,8 @@ Before answering, silently verify that every claimed "if and only if" condition 
                             "prompt": prompt,
                             "stream": False,
                             "options": {
-                            "temperature": 0.1,
-                                "num_predict": self.settings.ollama_num_predict,
+                                "temperature": 0.1,
+                                "num_predict": token_limit,
                                 "num_ctx": self.settings.ollama_num_ctx,
                                 "num_thread": self.settings.ollama_num_thread,
                             },

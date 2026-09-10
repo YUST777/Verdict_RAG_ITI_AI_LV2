@@ -290,11 +290,13 @@ export default function AIAgentPanel({
             ? 'quiz'
             : lowerPrompt.includes('hint')
             ? 'hint'
+            : lowerPrompt.includes('teach') || lowerPrompt.includes('علمني') || lowerPrompt.includes('explain') || lowerPrompt.includes('اشرح')
+            ? 'teach'
             : lowerPrompt.includes('debug') || lowerPrompt.includes('bug') || Boolean(selected)
-                ? 'debug'
-                : lowerPrompt.includes('full solution') || lowerPrompt.includes('solve it')
-                    ? 'full'
-                    : 'teach';
+            ? 'debug'
+            : lowerPrompt.includes('full') || lowerPrompt.includes('solve') || lowerPrompt.includes('code') || lowerPrompt.includes('solution') || lowerPrompt.includes('حل')
+            ? 'full'
+            : 'teach';
 
         try {
             const response = await fetch('/api/rag/query', {
@@ -466,7 +468,7 @@ export default function AIAgentPanel({
                     onSend={(message) => handleSendMessage(message)}
                     onStop={stopGeneration}
                     onOpenResources={() => setIsResourcesOpen(true)}
-                    onTeachMe={() => handleSendMessage(isArabic ? 'علمني كيف أحل هذه المسألة خطوة بخطوة.' : 'Teach me how to solve this problem step by step. Start with the key observation, algorithm, proof idea, edge cases, and complexity.')}
+                    onTeachMe={() => handleSendMessage(isArabic ? 'علمني كيف أحل هذه المسألة باختصار.' : 'Teach me how to solve this problem briefly: key observation, algorithm, and solution.')}
                     onQuizMe={() => handleSendMessage(isArabic ? 'اختبر فهمي للكود والمسألة بخمسة أسئلة.' : 'Quiz me on this problem and code with five questions.')}
                     isTutorLoading={false}
                     isTutorActive={false}

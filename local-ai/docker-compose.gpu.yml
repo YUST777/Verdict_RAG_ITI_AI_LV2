@@ -42,9 +42,8 @@ services:
       OLLAMA_MODEL: qwen2.5-coder:3b-q3-cuda
       MODEL_API_STYLE: llama
       OLLAMA_NUM_CTX: 2048
-      # Keep the response compact enough for this 3B model to stay focused.
-      # The UI still labels a response unverified until Judge0 accepts it.
-      OLLAMA_NUM_PREDICT: 512
+      # Keep responses focused and fast to prevent Vercel Serverless Function timeouts.
+      OLLAMA_NUM_PREDICT: 256
       OLLAMA_NUM_THREAD: 8
       OLLAMA_TIMEOUT_SECONDS: 180
       OLLAMA_PULL_MODEL: "0"
