@@ -319,8 +319,18 @@ export default function AIAgentPanel({
             setAiStatusByTab((previous) => ({ ...previous, [tabId]: isArabic ? 'بكتب إجابة مبنية على المصادر...' : 'Writing a grounded answer...' }));
             const data = await response.json() as { answer?: string; citations?: Citation[] };
             const citations = Array.isArray(data.citations) ? data.citations : [];
-            setResourceSources(citations);
+            setResourceSources(citations.map((c) => ({
+                ...c,
+                url: c.source?.startsWith('http') ? c.source : undefined,
+                description: c.source || 'Knowledge base article'
+            })));
             let answer = data.answer || (isArabic ? 'لم يرجع محرك RAG إجابة.' : 'The RAG service returned an empty answer.');
+            if (citations.length > 0 && !answer.includes('### Retrieved sources') && !answer.includes('### Retrieved Sources')) {
+                const sourceBullets = citations.slice(0, 3).map((c, i) =>
+                    `[${i + 1}] **${c.title || 'Source'}** — ${c.source || 'Knowledge base'}`
+                ).join('\n');
+                answer += `\n\n### Retrieved Sources\n${sourceBullets}`;
+            }
 
             // A small local model can write plausible but incorrect code. When
             // examples are available, send the extracted solution through the

@@ -20,18 +20,17 @@ async def query(payload: QueryRequest, request: Request, x_rag_api_key: str | No
     # algorithm articles. Other modes use the problem and question first, with
     # a bounded code slice only when no statement is available.
     if payload.mode == "quiz":
-        # Quiz generation is about the supplied problem/code, not a nearest
-        # algorithm article. Avoid unrelated retrieval and citations entirely.
-        query_text = ""
-    elif payload.mode == "full" or payload.problem_statement:
-        # The current corpus is algorithm notes, not a catalog of exact
-        # Codeforces statements. Feeding nearest neighbours into a supplied
-        # problem caused unrelated articles to replace easy problem solutions.
-        # When the client supplies the statement, generation must be based on
-        # that statement for every mode, not a nearest-neighbour article.
         query_text = ""
     else:
-        query_text = "\n".join(x for x in [payload.question, payload.problem_statement or "", (payload.code or "")[:4000] if not payload.problem_statement else ""] if x)
+        statement_summary = ""
+        if payload.problem_statement:
+            first_lines = [line.strip() for line in payload.problem_statement.splitlines() if line.strip()][:3]
+            statement_summary = " ".join(first_lines)[:300]
+        parts = [payload.question, statement_summary]
+        if not payload.problem_statement and payload.code:
+            parts.append((payload.code or "")[:500])
+        query_text = " ".join(p for p in parts if p).strip()
+
     context = retriever.search(query_text, payload.top_k or settings.retrieval_k) if query_text.strip() else []
     answer = await generator.generate(
         payload.question,
@@ -43,5 +42,7 @@ async def query(payload: QueryRequest, request: Request, x_rag_api_key: str | No
         payload.language,
     )
     citations = [Citation(id=x["id"], title=x["metadata"].get("title", "Untitled source"), source=x["metadata"].get("source_url", x["metadata"].get("source", x["metadata"].get("path", "indexed document"))), chunk=x["metadata"].get("chunk"), score=x.get("score"), metadata=x["metadata"]) for x in context]
+    sources = [c.source for c in citations]
     await history.record(payload.question, answer, [c.model_dump() for c in citations], payload.mode)
-    return QueryResponse(answer=answer, citations=citations, retrieved_context=context, model=settings.ollama_model, grounded=bool(context), latency_ms=round((time.perf_counter() - started) * 1000))
+    return QueryResponse(answer=answer, citations=citations, sources=sources, retrieved_context=context, model=settings.ollama_model, grounded=bool(context), latency_ms=round((time.perf_counter() - started) * 1000))
+

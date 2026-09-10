@@ -21,6 +21,7 @@ class Citation(BaseModel):
 class QueryResponse(BaseModel):
     answer: str
     citations: list[Citation] = Field(default_factory=list)
+    sources: list[str] = Field(default_factory=list)
     retrieved_context: list[dict[str, Any]] = Field(default_factory=list)
     model: str
     grounded: bool

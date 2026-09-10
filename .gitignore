@@ -57,4 +57,6 @@ public/remotion-bundle/
 scrapling-bridge/__pycache__/
 scratch/
 public/*.mp4
-
+__pycache__/
+*.py[cod]
+.pytest_cache/

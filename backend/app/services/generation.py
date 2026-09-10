@@ -19,9 +19,9 @@ class Generator:
         """Reject obvious small-model garbage before showing it as a solution."""
         text = " ".join((answer or "").split())
         lower = text.lower()
-        if len(text) < 80 or "```" not in answer:
+        if len(text) < 40 or "```" not in answer:
             return False
-        if "int main" not in lower and "def main" not in lower and "function main" not in lower:
+        if "main" not in lower and "return" not in lower:
             return False
         # Repeated identical sentences are a common failure mode of the
         # 135M model when asked for multi-step reasoning.
@@ -50,12 +50,7 @@ class Generator:
             for i, x in enumerate(context[:3])
         )
         source_text = self._clip(source_text, 2200)
-        if problem_statement:
-            # The caller supplied the authoritative statement. For beginner
-            # Codeforces tasks, unrelated indexed articles actively hurt a
-            # tiny model, so keep the prompt focused on the statement.
-            source_text = "No external source is needed; solve only the supplied problem statement."
-        elif not source_text:
+        if not source_text:
             source_text = "No indexed source supports this question. State that limitation clearly and avoid invented citations."
         if mode == "quiz":
             task = "Return ONLY a JSON array of exactly five objects with keys q, type, line, and difficulty. Questions must test the supplied problem and code, progress from easy to hard, and use real 1-based code line numbers when possible. Do not include markdown or commentary."
